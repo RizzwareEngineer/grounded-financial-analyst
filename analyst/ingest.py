@@ -43,23 +43,29 @@ TABLE block. Every table of numbers, including the small ones in the margin. Two
 - title: as printed, with its exhibit number if it has one.
 - unit: the unit printed for the table. A money unit must be written exactly "INR m", "INR b", "USD m" or "USD b" \
 ("(INRm)" and "INR Million" are "INR m"). Any other unit as printed. null if none is printed.
-- basis: consolidated or standalone as the table, page or report says; segment for a table of business segments; \
-subsidiary for a table about one subsidiary; null if nothing says.
+- basis: consolidated or standalone as the table title, a heading or the page text says; segment for a table of business \
+segments; subsidiary for a table about one subsidiary; null only if nothing on the page says.
 - description: one line for search: the company, what the table is, the unit and which periods it covers.
 - columns: every data column once, left to right.
   period: fiscal periods are written like 1QFY27 or FY26 with no trailing E. A "1Q" under an "FY26" group header is 1QFY26; \
-"FY27E" is FY27; "Q1FY27E" or "1QE" is 1QFY27. Any other header as printed.
+"FY27E" is FY27; "Q1FY27E" or "1QE" is 1QFY27. Any other header as printed. When the same periods repeat under group headers \
+that are not fiscal years, such as Old / New / Change, put the group first: "Old FY27", "New FY27", "Change FY27".
   kind: actual for reported figures. forecast for a future period or a header marked E. broker_estimate for the column \
 showing the broker's own earlier estimate for the reported quarter (it sits next to the variance column and repeats the \
 reported quarter's period). variance_pct for the beat/miss column ("Var %"), with the reported quarter as its period.
+  unit: null, unless the column's values are in a different unit from the rest of the table, then that unit, \
+e.g. "%" for a "YoY (%)", "Change" or "Var %" column.
 - rows: every row that has at least one value, top to bottom.
   label: as printed. A sub-row such as "YoY Change (%)" or "Margins (%)" carries its parent line in the label, \
-e.g. "Gross Sales: YoY Change (%)", because the same sub-label repeats under several lines.
+e.g. "Gross Sales: YoY Change (%)", because the same sub-label repeats under several lines. A label that appears more than \
+once in a table (an "Others" under each cash-flow section) carries its section the same way.
   metric: one of {", ".join(store.METRICS)}; set it only when the row is unambiguously that line for the whole company, \
 otherwise null. Sales, net sales and revenue from operations are revenue; "Gross Sales: YoY Change (%)" is revenue_growth_yoy_pct; \
 "EBITDA: Margins (%)" is ebitda_margin_pct. Segment lines, per-unit figures and anything doubtful get null: \
 a lender's "Net Income" that is really net total income gets null.
-  unit: null, unless the row's unit differs from the table's, then that unit, e.g. "%", "x", "INR", "days".
+  unit: null, unless the row's unit differs from the table's, then that unit, e.g. "%", "x", "INR", "days". In a money table \
+every row that is not a money total needs one: a bare ratio such as Net D/E is "x". A heading row such as "Valuation (x)" \
+gives the unit of the rows under it.
   values: exactly one entry per column, in column order. A blank cell is null and nothing is shifted left or right to fill it: \
 when a row prints fewer values than there are columns, use the alignment to decide which columns they sit under. \
 Numbers keep their sign (parentheses mean negative) and have no thousands separators or % sign; Indian grouping 2,30,790 means 230790.
@@ -86,7 +92,7 @@ SCHEMA = _object(
         _object(type={"type": "string", "enum": ["text"]}, section=_STR, text=_STR),
         _object(type={"type": "string", "enum": ["table"]}, title=_STR, unit=_or_null(_STR),
                 basis=_or_null({"type": "string", "enum": store.BASES}), description=_STR,
-                columns={"type": "array", "items": _object(period=_STR, kind={"type": "string", "enum": store.KINDS})},
+                columns={"type": "array", "items": _object(period=_STR, kind={"type": "string", "enum": store.KINDS}, unit=_or_null(_STR))},
                 rows={"type": "array", "items": _object(
                     label=_STR, metric=_or_null({"type": "string", "enum": store.METRICS}), unit=_or_null(_STR),
                     values={"type": "array", "items": _or_null(_NUM)})}),
@@ -208,14 +214,16 @@ def facts_from(page_number, table):
     return [{"page": page_number, "source_table": table["title"], "row_label": row["label"], "metric": row["metric"],
              "period": c["period"], "kind": c["kind"], "value": v,
              # the beat/miss column is a percentage whatever the row's unit
-             "unit": "%" if c["kind"] == "variance_pct" else row["unit"] or table["unit"], "basis": table["basis"]}
+             "unit": "%" if c["kind"] == "variance_pct" else c["unit"] or row["unit"] or table["unit"], "basis": table["basis"]}
             for row in table["rows"] for c, v in zip(table["columns"], row["values"]) if v is not None]
 
 
 def table_markdown(table, reported_period):
     def header(c):
-        kind = store.fact_kind(c["period"], reported_period, c["kind"])  # forecast by date, as the facts are stored
-        return {"forecast": f'{c["period"]} (E)', "broker_estimate": f'{c["period"]} est.', "variance_pct": "var %"}.get(kind, c["period"])
+        period = store.clean_period(c["period"])
+        kind = store.fact_kind(period, reported_period, c["kind"])  # forecast by date, as the facts are stored
+        name = {"forecast": f"{period} (E)", "broker_estimate": f"{period} est.", "variance_pct": "var %"}.get(kind, period)
+        return f'{name} ({c["unit"]})' if c["unit"] and kind != "variance_pct" else name
 
     lines = [f'**{table["title"]}** (unit: {table["unit"] or "not stated"}; basis: {table["basis"] or "not stated"})',
              "| | " + " | ".join(header(c) for c in table["columns"]) + " |",

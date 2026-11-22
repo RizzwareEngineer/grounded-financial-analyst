@@ -16,7 +16,7 @@ def list_reports(conn):
 
 def list_labels(conn, company):
     rows = conn.execute(
-        "SELECT source_table, row_label, metric, unit, basis, group_concat(DISTINCT period) AS periods "
+        "SELECT doc, source_table, row_label, metric, unit, basis, group_concat(DISTINCT period) AS periods "
         "FROM facts WHERE company = ? GROUP BY source_table, row_label ORDER BY source_table", [company]).fetchall()
     if not rows:
         return {"error": f"No company named {company!r}.", "valid_companies": _companies(conn)}
@@ -25,7 +25,7 @@ def list_labels(conn, company):
 
 def query_numbers(sql, data=store.DATA):
     """Run one read-only SELECT against the facts and reports tables."""
-    sql = sql.strip().rstrip(";")
+    sql = re.sub(r"(?s)\A(\s*(--[^\n]*(\n|\Z)|/\*.*?\*/))+", "", sql).strip().rstrip(";")  # the prompt's examples start with a comment
     if not re.match(r"(?is)^(select|with)\b", sql) or ";" in sql:
         return {"error": "Only a single SELECT statement is allowed."}
     try:

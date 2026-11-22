@@ -152,6 +152,7 @@ The stores and tools stay the same. The catalog moves out of the prompt into a l
 ## Limits
 
 - A general-knowledge sentence attached to a real citation can pass the check; the refusal questions in the eval are what catch it.
+- Numbers are checked against everything the tools returned in the run, not per statement, so a number from one result can vouch for a statement about another.
 - A value misread into a neighbouring cell is only caught where a total exists to cross-check it.
 - Chart values are described, not measured, and are marked approximate.
 
