@@ -164,6 +164,7 @@ def data(tmp_path_factory):
 @pytest.fixture
 def run(data, tmp_path, monkeypatch):
     monkeypatch.setattr(llm, "USAGE_LOG", tmp_path / "usage.jsonl")
+    monkeypatch.setattr(agent, "REVIEW", False)  # the loop tests script exact rounds; the review round has its own test
 
     def run(*script):
         client = FakeClient(script)
@@ -216,7 +217,7 @@ def test_request_shape(run):
     assert request["model"] == "claude-opus-5-5" and request["max_tokens"] == 16000
     assert not {"temperature", "top_p", "top_k", "tool_choice", "thinking"} & set(request)
     assert request["system"][0]["cache_control"] == {"type": "ephemeral"} and request["cache_control"] == {"type": "ephemeral"}
-    assert [t["name"] for t in request["tools"]] == ["list_reports", "list_labels", "query_numbers", "search_text", "submit_answer"]
+    assert [t["name"] for t in request["tools"]] == ["list_reports", "list_labels", "query_numbers", "search_text", "read_page", "submit_answer"]
     assert request["tools"][-1]["strict"] is True
     assert request["messages"] == [{"role": "user", "content": [{"type": "text", "text": "a question"}]}]
 
@@ -286,6 +287,19 @@ def test_one_repair_round(run):
     assert result["answer"].splitlines() == [f"{REVENUE['text']} [{GSK}]", f"{BEAT['text']} [{GSK}]"]
     assert [t for t in result["trace"] if "check" in t] == [
         {"round": 2, "claim": BEAT["text"], "check": "numbers not in your tool results: 6.8"}]
+
+
+def test_the_first_answer_is_sent_back_once_for_a_completeness_review(run, monkeypatch):
+    monkeypatch.setattr(agent, "REVIEW", True)
+    result, requests = run(use(("query_numbers", {"sql": GSK_SQL})), submit(REVENUE),
+                           use(("query_numbers", {"sql": BEAT_SQL})), submit(REVENUE, BEAT))
+    assert len(requests) == 4                                 # the second submission is final: no second review
+    review = last_user(requests[2])[0]
+    assert review["content"] == agent.REVIEW_TEXT and not review["is_error"]
+    assert result["answer"].splitlines() == [f"{REVENUE['text']} [{GSK}]", f"{BEAT['text']} [{GSK}]"]
+
+    refusal, requests = run(submit(refused=True))             # a refusal is not sent back
+    assert len(requests) == 1 and refusal["refused"]
 
 
 def test_claims_that_still_fail_are_dropped_with_a_note(run):

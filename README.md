@@ -6,7 +6,7 @@ A command-line analyst that answers questions over a folder of broker research P
 
 ![System design](design/system-design.png)
 
-[Open the diagram in Excalidraw](https://excalidraw.com/#json=N0_f68sYSKmxPD8SnL8Hr,MJ_5MJJG-F3U2QXaCooLZg) (use a private window if you already have a drawing open there), or load [design/system-design.excalidraw](design/system-design.excalidraw).
+[Open the diagram in Excalidraw](https://excalidraw.com/#json=Skj9G0DsJi7WVYTQW2Hgl,eEaS-5sN2eC35J4a7LYAHA) (use a private window if you already have a drawing open there), or load [design/system-design.excalidraw](design/system-design.excalidraw).
 
 ## Walkthrough
 
@@ -22,19 +22,20 @@ A command-line analyst that answers questions over a folder of broker research P
 
 ### Query (every question)
 
-1. **Loop.** The question goes to Claude Opus 5.5 with four lookup tools:
+1. **Loop.** The question goes to Claude Opus 5.5 with five lookup tools:
    - `list_reports()`: the catalog of reports.
    - `list_labels(company)`: the table rows one report has.
    - `query_numbers(sql)`: one read-only `SELECT` over the SQLite numbers.
    - `search_text(query, companies)`: Chroma vector search plus FTS5 keyword search, merged, one search per company.
+   - `read_page(company, page)`: everything on one page of a report. Page 1 is the broker's own summary, so "why" questions start there and don't depend on search wording.
 
    Each round Claude replies with a tool call. A lookup tool means it needs more; `submit_answer` means it has enough. Code runs the lookup, adds the result to the conversation and asks again, for at most 8 rounds.
-2. **Submit.** `submit_answer` takes a list of statements, each with the reports it cites. Free text is never accepted as the answer.
+2. **Submit.** `submit_answer` takes a list of statements, each with the reports it cites. Free text is never accepted as the answer. The first submission is always sent back once with one question: is any part of the question, or a reason the report's summary gives, missing?
 3. **Check, in code.** Each cited report must be one a tool returned in this run, and every number must appear in a tool result. Rounding and million/billion scaling are allowed; anything calculated has to be computed in SQL so that it shows up in a result.
 
 **If something fails:**
 - **A lookup finds nothing:** the tool returns the valid company names and a hint, so Claude retries with `list_labels` or different wording.
-- **A statement fails the check:** it goes back to Claude once with the reason. What still fails is dropped.
+- **A statement fails the check:** it goes back to Claude with the reason, in the same single send-back. What still fails is dropped.
 - **Nothing survives, or the tools never found support:** the answer is "Not in the corpus".
 
 ### Eval (after every change)
@@ -47,21 +48,24 @@ A command-line analyst that answers questions over a folder of broker research P
 
 **Question:** "Why did Escorts Kubota's gross margin decline in 1QFY27 despite 28% revenue growth, and what is the margin outlook?"
 
-It needs a number from a table and a reason from the commentary, so it touches both stores.
+It needs numbers from tables and reasons from the commentary, so it touches both stores. This is the trace of a real run (`ask "..." --debug`), which cost $0.15:
 
-| Round | Claude calls | What comes back | What Claude concludes |
-|---|---|---|---|
-| 1 | `query_numbers`: gross margin and revenue growth for Escorts Kubota, 1QFY27 | 27.2% and 28.0%, each with document and page | It has the "what", not the "why" |
-| 2 | `search_text("gross margin decline reason", Escorts Kubota)` | Chunks on margins and raw-material cost inflation | It has the reason; the outlook is still missing |
-| 3 | `search_text("margin outlook second half price hike", Escorts Kubota)` | The outlook commentary | Every part of the question has support |
-| 4 | `submit_answer` with statements and sources | | |
+| Round | Claude calls | What comes back |
+|---|---|---|
+| 1 | `read_page("Escorts Kubota", 1)` | The broker's page-1 summary of the quarter |
+| 1 | `query_numbers`: revenue, growth and margin rows for 1QFY26, 4QFY26, 1QFY27, FY27 and FY28 | 71 rows, each with document and page |
+| 2 | `search_text("margin outlook input cost inflation price hike commodity steel")` | Chunks from the outlook and management commentary |
+| 3 | `submit_answer` | Sent back once for the completeness review |
+| 4 | `submit_answer` again | Accepted: every statement cites `MotilalOswal_ESCORTS_5765676.pdf` and every number traces to a tool result |
 
-The code check then passes each statement: every one cites `MotilalOswal_ESCORTS_5765676.pdf`, which the tools returned, and 27.2, 28 and 370bp all appear in tool results. A sentence such as "margins typically recover within two quarters" has nothing behind it and would be dropped.
+The answer, shortened to four of its eight statements:
 
-> Gross margin fell about 370bp YoY to 27.2%, mainly because of raw-material cost inflation, even though revenue grew 28%. [MotilalOswal_ESCORTS_5765676.pdf]
-> The report expects pressure to continue in the second quarter and ease in the second half as input costs cool. [MotilalOswal_ESCORTS_5765676.pdf]
+> Escorts Kubota's 1QFY27 standalone revenue was INR31,789m, up 28% YoY and 1.7% above the broker's estimate of INR31,269m. [MotilalOswal_ESCORTS_5765676.pdf]
+> Despite that growth, gross margin fell about 370bp YoY to 27.2% (from 30.9% in 1QFY26). The report says this was mainly due to raw material cost inflation. [MotilalOswal_ESCORTS_5765676.pdf]
+> The Construction Equipment margin came in at 5.4%, against an estimate of 7.5%. Another page of the same report gives the segment's EBIT margin as 5.8%. [MotilalOswal_ESCORTS_5765676.pdf]
+> Outlook: the broker expects margins to stay under pressure at least through 2Q and then recover gradually as input costs ease in 2H. [MotilalOswal_ESCORTS_5765676.pdf]
 
-This is the intended path. The real `--debug` trace replaces it once the build passes its checks.
+It states that the revenue figure is standalone, and it reports the report's own inconsistency (5.4% against 5.8%) instead of picking one.
 
 ## Run it
 
@@ -119,7 +123,7 @@ Each round the model sees the question and every result so far, and replies with
 <details>
 <summary><b>What stops it answering too early with a thin answer?</b></summary>
 
-Its instructions say a "why" or "how did it do" answer needs both the report's reasons and the quarter's headline figures, and the eval lists the numbers a complete answer must contain, so a thin answer fails there. Retrying until the answer stops improving would need a second model to judge each round, at roughly double the cost.
+For "why" questions it reads the report's first page before searching, and its first answer is always sent back once for a completeness check. The eval lists the numbers a complete answer must contain, so a thin answer fails there; retrying until the answer stops improving would need a second model to judge each round.
 
 </details>
 

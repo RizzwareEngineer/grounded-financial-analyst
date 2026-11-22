@@ -1,4 +1,4 @@
-"""The four tools the agent can call. Every result row carries its document, so citations come from data."""
+"""The lookup tools the agent can call. Every result row carries its document, so citations come from data."""
 import re
 import sqlite3
 import time
@@ -55,6 +55,15 @@ def search_text(conn, coll, query, companies=None, k=6):
             f"SELECT id, company, doc, page, section, kind, content FROM chunks WHERE id IN ({marks})", ranked)}
         out += [dict(found[i]) for i in ranked if i in found]
     return out or {"chunks": [], "hint": "No matching text. Try different words or drop the company filter."}
+
+
+def read_page(conn, company, page):
+    """Everything stored for one page of one report, in reading order. Page 1 is the broker's own summary."""
+    rows = conn.execute("SELECT id, company, doc, page, section, kind, content FROM chunks WHERE company = ? AND page = ? "
+                        "ORDER BY rowid", [company, page]).fetchall()
+    if not rows:
+        return {"error": f"No page {page} stored for {company!r}.", "valid_companies": _companies(conn)}
+    return [dict(r) for r in rows]
 
 
 def _companies(conn):

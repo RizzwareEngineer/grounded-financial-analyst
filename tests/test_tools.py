@@ -205,3 +205,12 @@ def test_company_given_as_a_string(env):
     conn, coll, _ = env  # a model may send "Beta" where a list is expected; it must not be searched letter by letter
     out = tools.search_text(conn, coll, "raw material costs", "Beta")
     assert out[0]["id"] == "b1" and {r["company"] for r in out} == {"Beta"}
+
+
+def test_read_page_returns_one_page_in_order_and_names_valid_companies_otherwise(env):
+    conn = env[0]
+    row = conn.execute("SELECT company, page FROM chunks LIMIT 1").fetchone()
+    out = tools.read_page(conn, row["company"], row["page"])
+    assert out and all(c["company"] == row["company"] and c["page"] == row["page"] and c["doc"] for c in out)
+    missing = tools.read_page(conn, "Nobody Ltd", 1)
+    assert "error" in missing and missing["valid_companies"]

@@ -8,6 +8,12 @@ from . import llm, store, tools
 MODEL = "claude-opus-5-5"
 MAX_ROUNDS = 8
 NO_ANSWER = "the reports do not contain an answer to this question."
+# The model can stop with an answer that is grounded but thin, so its first answer is sent back once.
+REVIEW = True
+REVIEW_TEXT = ("Not final yet. Check completeness once: re-read the question and your tool results. If a part of the question is "
+               "unanswered, or your answer leaves out a reason or headline figure that the report's own first-page summary gives "
+               "for the point being asked about, look it up if needed and add it. Do not pad the answer with anything else. Then "
+               "call submit_answer again with the full answer; if nothing is missing, submit it unchanged.")
 
 RULES = """You are a financial analyst answering questions about a fixed set of broker research reports (the corpus).
 You work only through the tools, and you finish by calling submit_answer. Plain text you write is discarded.
@@ -17,7 +23,7 @@ You work only through the tools, and you finish by calling submit_answer. Plain 
 - Numbers come from query_numbers. Use metric names for the common lines and list_labels(company) to find any other row. Compare or rank companies on value_inr_m or on printed percentages, never on raw values in different units. Every derived number (growth, beat, upside, difference, ratio) must be computed in a SQL query so that it appears in a tool result. Never do arithmetic yourself.
 - kind 'actual' is reported; 'forecast' is the broker's projection for a period not yet reported; 'broker_estimate' is what the broker expected for the reported quarter. Never present a forecast or an estimate as an actual. "Last quarter" means each report's reported_period.
 - State the basis (consolidated or standalone) when comparing companies whose bases differ.
-- Reasons, outlook and commentary come from search_text, filtered to the company; try different wording before concluding something is absent.
+- For a question about why the broker holds a rating or view, or how a company did, start with read_page(company, 1): the first page is the report's own summary of results and reasons, whatever words the question uses. Further reasons, outlook and commentary come from search_text, filtered to the company; try different wording before concluding something is absent.
 - Sector questions: membership is the sector column of the catalog and nothing else. Open with the scope ("the corpus has three reports labelled X: ..."), report each company separately, and mention in one line any company whose business sounds related but carries a different label.
 - If a tool returns nothing, try another way (list_labels, different wording, another table) before giving up. If a report gives two different values for the same thing, report both and say so.
 - Partly answerable questions: answer the supported part and say in `missing` what the corpus does not contain. A wrong premise in the question is corrected from the report, with a citation.
@@ -25,7 +31,7 @@ You work only through the tools, and you finish by calling submit_answer. Plain 
 
 # Working method
 - You have at most {rounds} rounds. Call several tools in one round whenever the calls do not depend on each other.
-- Before submitting, check every part of the question against your results. A "why" or "how did it do" question needs both the reasons the report gives and the reported quarter's headline figures behind them (revenue, margin, profit, order wins, each against the broker's estimate where printed): query the numbers and search the results summary and the valuation section, not just one of them.
+- Before submitting, check every part of the question against your results. A "why" or "how did it do" question needs both the reasons the report gives and the headline figures behind them, each against the broker's estimate where printed.
 - Always select doc in a query: a claim can only cite documents that appeared in your tool results.
 - `missing` names only something the question explicitly asks for that the corpus does not contain; otherwise leave it empty. Do not list detail the question did not ask about, and put caveats in a claim, not there.
 - Every number you write is checked in code against your tool results (rounding, INR m against INR b, and a ratio shown as a percentage are allowed). A number that is not in a tool result gets its claim removed.
@@ -84,6 +90,11 @@ TOOLS = [
          "companies": {"type": "array", "items": {"type": "string"}, "description": "Exact company names to search within; one search runs per company."},
          "k": {"type": "integer", "description": "Chunks per company (default 6)."}},
          "required": ["query"], "additionalProperties": False}},
+    {"name": "read_page", "description": "Everything on one page of one report, in reading order. Page 1 is the broker's own "
+     "summary: its headline, the key results and the reasons for its view.",
+     "input_schema": {"type": "object", "properties": {
+         "company": {"type": "string", "description": "Exact company name from the catalog."}, "page": {"type": "integer"}},
+         "required": ["company", "page"], "additionalProperties": False}},
     {"name": "submit_answer", "strict": True, "description": "Finish the run. This is the only way to answer. Each claim is one or two "
      "sentences making one point; its sources are the doc values of the tool rows or chunks that support it. Write periods as the "
      "reports do (1QFY27), counts of reports as words, and no list numbering. To refuse, set refused true with no claims.",
@@ -196,6 +207,8 @@ def run_tool(name, args, conn, coll, data):
         return tools.list_labels(conn, args["company"])
     if name == "query_numbers":
         return tools.query_numbers(args["sql"], data)
+    if name == "read_page":
+        return tools.read_page(conn, args["company"], args["page"])
     if name == "search_text":
         return tools.search_text(conn, coll, args["query"], args.get("companies"), args.get("k") or 6)
     raise ValueError(f"Unknown tool {name!r}.")
@@ -261,13 +274,16 @@ def ask(question, data=store.DATA, debug=False):
             failures = check(answer["claims"], docs, numbers)[1]
             for failure in failures:
                 note({"round": rnd, **failure})
-            if not failures or repaired or answer["refused"] or rnd == MAX_ROUNDS:
+            if repaired or answer["refused"] or rnd == MAX_ROUNDS or not (failures or REVIEW):
                 break
-            repaired = True
+            repaired = True  # one bounce only: failed claims to fix, and one look at completeness
             text = ("Not accepted yet. These claims failed the check; query the numbers or remove them, cite only documents "
                     "your tools returned, then call submit_answer again with the full answer:\n"
-                    + "\n".join(f"- {f['claim']} -> {f['check']}" for f in failures))
-            results += [{"type": "tool_result", "tool_use_id": c.id, "content": text, "is_error": True} for c in submits]
+                    + "\n".join(f"- {f['claim']} -> {f['check']}" for f in failures)) if failures else ""
+            if REVIEW:
+                text = (text + "\n" + REVIEW_TEXT).strip()
+                note({"round": rnd, "check": "first answer sent back once for a completeness review"})
+            results += [{"type": "tool_result", "tool_use_id": c.id, "content": text, "is_error": bool(failures)} for c in submits]
         messages.append({"role": "user", "content": results})
 
     kept, failures = check(answer["claims"], docs, numbers) if answer else ([], [])
