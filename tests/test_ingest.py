@@ -75,8 +75,8 @@ def test_chunks_merge_a_section_and_carry_search_text():
     assert text["search_text"] == "Acme | 1QFY27 Results Update | Outlook\nFirst bullet.\nSecond bullet."
     assert table["section"] == "Quarterly Earnings Model"
     assert table["search_text"] == TABLE["description"] + "\nGross Sales, Gross Sales: YoY Change (%), EBITDA"
-    assert chart["content"] == "Chart (values read from an image, approximate): Revenue bars: 1QFY27 56.1"
-    assert chart["search_text"] == "Acme revenue trend 1QFY25 to 1QFY27"
+    assert chart["content"] == "Exhibit 2: Revenue trend\nChart (values read from an image, approximate): Revenue bars: 1QFY27 56.1"
+    assert chart["search_text"] == "Exhibit 2: Revenue trend\nAcme revenue trend 1QFY25 to 1QFY27"
 
 
 def test_table_markdown():

@@ -293,8 +293,8 @@ def chunks_from(doc, page_number, card, blocks):
             if kind == "table":
                 add(b["title"], "table", table_markdown(b, card["reported_period"]),
                     b["description"] + "\n" + ", ".join(row["label"] for row in b["rows"]))
-            else:
-                add(b["title"], "chart", CHART_PREFIX + b["description"], b["search"])
+            else:  # a chart's title often states its point ("61 new branches opened in 1QFY27"), so it is searched and shown too
+                add(b["title"], "chart", f'{b["title"]}\n{CHART_PREFIX}{b["description"]}'.lstrip(), f'{b["title"]}\n{b["search"]}'.lstrip())
     return chunks
 
 
