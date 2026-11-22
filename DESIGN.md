@@ -1,6 +1,8 @@
 # System design
 
-The diagram is in the [README](README.md#how-it-works) and as an [Excalidraw file](design/system-design.excalidraw) ([open it in Excalidraw](https://excalidraw.com/#json=NVlGfcGPt06jvL7l9KLEB,ayQ9MlwI-SWJxA14YqS2Zg)).
+![System design](design/system-design.png)
+
+The diagram is also an [Excalidraw file](design/system-design.excalidraw) ([open it in Excalidraw](https://excalidraw.com/#json=N0_f68sYSKmxPD8SnL8Hr,MJ_5MJJG-F3U2QXaCooLZg)). The spoken walkthrough is in the [README](README.md#walkthrough).
 
 ## What it has to do
 
