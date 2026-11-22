@@ -6,3 +6,4 @@ __pycache__/
 docs/*.pdf
 evals/results/
 .claude/
+PLAN.md
