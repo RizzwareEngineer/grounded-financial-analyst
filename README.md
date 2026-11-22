@@ -6,43 +6,71 @@ A command-line analyst that answers questions over a folder of broker research P
 
 ![System design](design/system-design.png)
 
-[Open the diagram in Excalidraw](https://excalidraw.com/#json=aqtb8Bf5-akUSDwmIPj4F,3NEGRYvBDSxzfbNC-KFvWQ) (use a private window if you already have a drawing open there), or load [design/system-design.excalidraw](design/system-design.excalidraw).
+[Open the diagram in Excalidraw](https://excalidraw.com/#json=_Be9Rk8O-ReE8E9UG0v2w,hqwJXy8IbAgcRC-iVKd19Q) (use a private window if you already have a drawing open there), or load [design/system-design.excalidraw](design/system-design.excalidraw).
 
 ## Walkthrough
 
+The numbers match the diagram. There are three passes: ingest runs once, query runs for every question, and eval runs after every change.
+
 <details>
-<summary><b>Ingest (once)</b></summary>
+<summary><b>Ingest: blocks 1 to 6 (runs once)</b></summary>
 
-**Why a vision model reads the pages:** a PDF stores characters at positions, so plain extraction returns a table's numbers with the columns lost and nothing at all for a chart. The vision model is the step that turns each page into clean text and table rows. Search text can only be written once that exists, and here it is written in the same call.
+| # | Block | What it does |
+|---|---|---|
+| 1 | 17 PDFs | The broker reports we were given. Nothing else is ever used as a source. |
+| 2 | Read each page | A PDF only stores letters at positions, so a table comes out as loose numbers and a chart as nothing. A vision model (Claude Haiku 5.5) looks at each page the way a person does and types it out: paragraphs as text, tables as rows and columns, charts as a short description. Its whole job is to turn the page into readable text. |
+| 3 | Check numbers | We don't trust that typing. PyMuPDF pulls the page's raw characters, and code checks that every number the model wrote is really printed on that page, that every table row has a value for every column, and that four quarters add up to the year. |
+| 4 | Split | Code cuts each page two ways. Every table cell becomes one row of numbers. Every paragraph becomes a text chunk of at most 160 words. For each table and chart the model also wrote a one-line description, the search text, so it can be found later. |
+| 5 | Embed + load | The text chunks go through MiniLM, a small local model that turns text into a list of numbers so that similar meanings land close together, and are saved in Chroma. The rows of numbers are saved in SQLite. |
+| 6 | Stores | What we end up with: a catalog with one row per report (company, sector, rating, target price); a numbers table with one row per number (17,651 rows); and 580 text chunks that can be searched by meaning (Chroma) and by keyword (SQLite FTS5, BM25). |
 
-1. **Read.** PyMuPDF cuts each report into pages and pulls the raw text; pages after the broker's disclosure heading are skipped. Each page goes to Claude Haiku 5.5 as a one-page PDF and comes back as structured JSON: text blocks, tables as columns and rows of values, and chart descriptions. Page 1 also yields the report card (company, sector, rating, price, target price).
-2. **Check, in code.** Every value must be printed in that page's PyMuPDF text, every row must have one value per column, and where a table has four quarters and a full year they must add up (a misplaced column fails the page).
-3. **Store.** Each table cell becomes one row in SQLite, with its company, row label, period, unit, actual-or-forecast flag, document and page. Text is cut into chunks of at most 160 words, embedded with all-MiniLM-L6-v2 into Chroma, and indexed for BM25 keyword search with SQLite FTS5.
+**If something fails:** a page that fails block 3 is read again, then read by a stronger model (Claude Sonnet 5.5), then listed as failed. One page of 147 is flagged: a table that is an image.
 
-**If something fails:** a page that fails the checks is read again by Haiku, then by Claude Sonnet 5.5. If it still fails it is listed as failed in the run summary, and a row with the wrong number of values is not stored.
-
-**When the reports change:** run ingest again. Page results are cached by the file's content, so a new report is read, an edited one is read again, an unchanged one costs nothing, and a deleted one is removed from the stores. Each report's rows are replaced as a unit, so nothing stale is left behind.
+**When the reports change:** run ingest again. Only new or edited reports are read, and a deleted report is removed from the stores.
 
 </details>
 
 <details>
-<summary><b>Query (every question)</b></summary>
+<summary><b>Query: blocks 7 to 11 (every question)</b></summary>
 
-1. **Loop.** The question goes to Claude Opus 5.5 with five lookup tools:
-   - `list_reports()`: the catalog of reports.
-   - `list_labels(company)`: one line per printed table row of that report, with the table's title, the row's label, its unit and the periods it has values for. No numbers.
-   - `query_numbers(sql)`: one read-only `SELECT` over the SQLite numbers.
-   - `search_text(query, companies)`: Chroma vector search plus FTS5 keyword search, merged, one search per company.
-   - `read_page(company, page)`: everything on one page of a report. Page 1 is the broker's own summary, so "why" questions start there and don't depend on search wording.
-
-   Each round Claude replies with a tool call. A lookup tool means it needs more; `submit_answer` means it has enough. Code runs the lookup, adds the result to the conversation and asks again, for at most 8 rounds.
-2. **Submit.** `submit_answer` takes a list of statements, each with the reports it cites. Free text is never accepted as the answer. The first submission is always sent back once with one question: is any part of the question, or a reason the report's summary gives, missing?
-3. **Check, in code.** Each cited report must be one a tool returned in this run, and every number must appear in a tool result. Rounding and million/billion scaling are allowed; anything calculated has to be computed in SQL so that it shows up in a result.
+| # | Block | What it does |
+|---|---|---|
+| 7 | User (CLI) | Someone types a question into the command line. |
+| 8 | Agent loop | The question goes to Claude Opus 5.5 together with the tools. Each round Claude does one of two things: it asks for a tool ("I need more") or it submits an answer ("I have enough"). That choice is check 1. Code runs the tool, hands the result back and asks again, at most eight times. |
+| 9 | Tools | Five ways to look something up, each reading one store:<br>`list_reports`: which reports do we have?<br>`list_labels`: which rows do this report's tables have?<br>`query_numbers`: fetch exact numbers with a SQL query.<br>`search_text`: find paragraphs about a topic.<br>`read_page`: hand over one whole page of a report. Page 1 is the broker's own summary, so a "why" question starts by reading it. |
+| 10 | Answer check | Claude does not write free text. It submits statements, each with the report it cites. Code checks that every cited report was really returned by a tool and that every number appears in a tool result. The first answer is always sent back once with "is anything missing?". This is check 2. |
+| 11 | Answer | What survives is printed with its sources. If nothing survives, or the tools found nothing, it prints "Not in the corpus". |
 
 **If something fails:**
-- **A lookup finds nothing:** the tool returns the valid company names and a hint, so Claude retries with `list_labels` or different wording.
-- **A statement fails the check:** it goes back to Claude with the reason, in the same single send-back. What still fails is dropped.
-- **Nothing survives, or the tools never found support:** the answer is "Not in the corpus".
+- **A lookup finds nothing:** the tool replies with the valid company names and a hint, so Claude tries `list_labels` or different search words.
+- **A statement fails check 2:** it goes back to Claude once with the reason. What still fails is removed.
+- **The question can't be answered from the reports:** the answer is "Not in the corpus". A half-answerable question gets the half that is supported, plus a line saying what is missing.
+
+</details>
+
+<details>
+<summary><b>Eval: blocks 12 to 15 (after every change)</b></summary>
+
+| # | Block | What it does |
+|---|---|---|
+| 12 | golden.jsonl | 47 questions, each with the numbers a right answer must contain, the reports it must cite, and whether it should be refused. The expected values were checked against the PDF text. |
+| 13 | Run the CLI | Each question is run through the same command a user would type. |
+| 14 | Code checks | Plain code compares each answer with the expected numbers, sources and refusals. No model grades the answers. |
+| 15 | Scorecard | Pass or fail per question, with the reason. Today: 32 of 32 tuning questions and 14 of 15 held-out questions. |
+
+| Kind of question | Count | Example |
+|---|---|---|
+| Lookup: one or a few cells of one report | 8 | Revenue against the broker's estimate |
+| Derivation | 5 | How a target price is arrived at |
+| Multi-cell: several columns of one row, or one cell across reports in different units | 3 | A company's revenue in each quarter of a year |
+| Ranking and corpus-wide, across two to eight reports | 7 | Which stocks have a target price below the current price |
+| Sector | 4 | How did healthcare do last quarter |
+| Why and outlook | 6 | Why a margin fell |
+| The report contradicts itself | 4 | Two different figures for one line |
+| Should refuse | 6 | A company that is not in the corpus |
+| Wrong premise or half answerable | 4 | "Why was it downgraded?" when it wasn't |
+
+12 of the 47 need two or more reports. The brief's six samples are among them.
 
 </details>
 
@@ -89,34 +117,11 @@ The model is told these columns and their allowed values in its instructions. Th
 </details>
 
 <details>
-<summary><b>Eval (after every change)</b></summary>
-
-`evals/golden.jsonl` holds 47 questions, each with the numbers an answer must contain, the reports it must cite, and whether it should refuse. `python -m analyst eval` runs each question through the CLI and plain Python scores it; no model grades the answers. The expected values were checked against the PDF text, and 15 questions are held out from tuning.
-
-| Kind of question | Count | Example |
-|---|---|---|
-| Lookup: one or a few cells of one report | 8 | Revenue against the broker's estimate |
-| Derivation | 5 | How a target price is arrived at |
-| Multi-cell: several columns of one row, or one cell across reports in different units | 3 | A company's revenue in each quarter of a year |
-| Ranking and corpus-wide, across two to eight reports | 7 | Which stocks have a target price below the current price |
-| Sector | 4 | How did healthcare do last quarter |
-| Why and outlook | 6 | Why a margin fell |
-| The report contradicts itself | 4 | Two different figures for one line |
-| Should refuse | 6 | A company that is not in the corpus |
-| Wrong premise or half answerable | 4 | "Why was it downgraded?" when it wasn't |
-
-12 of the 47 need two or more reports. The brief's six samples are among them.
-
-**If something fails:** the scorecard prints the reason per question (a missing number, a missing citation, a wrong refusal), and `--failed` re-runs only those.
-
-</details>
-
-<details>
 <summary><b>One question, end to end</b></summary>
 
 **Question:** "Why did Escorts Kubota's gross margin decline in 1QFY27 despite 28% revenue growth, and what is the margin outlook?"
 
-It needs numbers from tables and reasons from the commentary, so it touches both stores. This is the trace of a real run (`ask "..." --debug`), which cost $0.15:
+It needs numbers from tables and reasons from the commentary, so it uses the agent loop (block 8), three of the tools (block 9) and both checks. This is the trace of a real run (`ask "..." --debug`), which cost $0.15:
 
 | Round | Claude calls | What comes back |
 |---|---|---|
