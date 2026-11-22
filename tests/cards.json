@@ -1,0 +1,19 @@
+[
+  {"doc": "apl-financial-statement.pdf", "company": "APL Apollo Tubes", "sector": "Midcaps", "rating": "Buy", "cmp": 1942, "target_price": 2240, "reported_period": "1QFY27"},
+  {"doc": "bluejet-financial-statement.pdf", "company": "Blue Jet Healthcare", "sector": "Chemicals", "rating": "Buy", "cmp": 590, "target_price": 710, "reported_period": "1QFY27"},
+  {"doc": "cdsl-financial-statement.pdf", "company": "CDSL", "sector": "Financials", "rating": "Neutral", "cmp": 1322, "target_price": 1200, "reported_period": "1QFY27"},
+  {"doc": "cello-financial-statement.pdf", "company": "Cello World", "sector": "Others", "rating": "Buy", "cmp": 344, "target_price": 480, "reported_period": "FY26"},
+  {"doc": "Divis_Laboratories_MotilalOswal_02082026.pdf", "company": "Divi's Laboratories", "sector": "Healthcare", "rating": "Neutral", "cmp": 8056, "target_price": 7720, "reported_period": "1QFY27"},
+  {"doc": "glennmark-financial-statement.pdf", "company": "Glenmark Pharma", "sector": "Healthcare", "rating": "Buy", "cmp": 2230, "target_price": 2570, "reported_period": "1QFY27"},
+  {"doc": "IndianOil_MotilalOswal_02082026.pdf", "company": "IOCL", "sector": "Oil & Gas", "rating": "Neutral", "cmp": 140, "target_price": 150, "reported_period": "1QFY27"},
+  {"doc": "ITC_MotilalOswal_02082026.pdf", "company": "ITC", "sector": "Consumer", "rating": "Neutral", "cmp": 281, "target_price": 300, "reported_period": "1QFY27"},
+  {"doc": "MotilalOswal_ESCORTS_5765676.pdf", "company": "Escorts Kubota", "sector": "Automobile", "rating": "Neutral", "cmp": 3136, "target_price": 3348, "reported_period": "1QFY27"},
+  {"doc": "MotilalOswal_GLAXO_5765685.pdf", "company": "GSK Pharma", "sector": "Healthcare", "rating": "Neutral", "cmp": 2662, "target_price": 2870, "reported_period": "1QFY27"},
+  {"doc": "MotilalOswal_NATIONALUM_5765693.pdf", "company": "NALCO", "sector": "Metals", "rating": "Neutral", "cmp": 369, "target_price": 380, "reported_period": "1QFY27"},
+  {"doc": "MotilalOswal_UPL_5765696.pdf", "company": "UPL", "sector": "Agri", "rating": "Neutral", "cmp": 620, "target_price": 600, "reported_period": "1QFY27"},
+  {"doc": "MuthootFinance_MotilalOswal_02082026.pdf", "company": "Muthoot Finance", "sector": "Financials", "rating": "Neutral", "cmp": 3120, "target_price": 2850, "reported_period": "1QFY27"},
+  {"doc": "persistent-financial-statement.pdf", "company": "Persistent Systems", "sector": "Technology", "rating": "Buy", "cmp": 5575, "target_price": 6400, "reported_period": "1QFY27"},
+  {"doc": "raymond-financial-statement.pdf", "company": "Raymond Lifestyle", "sector": "Retail", "rating": "Buy", "cmp": 727, "target_price": 880, "reported_period": "1QFY27"},
+  {"doc": "restaurant-brands-financial-statement.pdf", "company": "Restaurant Brands Asia", "sector": "Retail", "rating": "Buy", "cmp": 71, "target_price": 125, "reported_period": "1QFY27"},
+  {"doc": "transport-corp-financial-statement.pdf", "company": "Transport Corporation of India", "sector": "Logistics", "rating": "Buy", "cmp": 915, "target_price": 1150, "reported_period": "1QFY27"}
+]
