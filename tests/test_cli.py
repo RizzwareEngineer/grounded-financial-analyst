@@ -47,6 +47,24 @@ def test_ask_refusal_has_no_sources(monkeypatch, capsys):
     assert "Sources:" not in capsys.readouterr().out
 
 
+def test_ask_on_a_test_question_shows_the_expected_answer_and_the_check(monkeypatch, capsys, tmp_path):
+    row = {"id": "T1", "category": "lookup", "question": "What was revenue?", "must_include": [["9,384", "9.4"]],
+           "must_cite": ["A.pdf"], "should_refuse": "no", "expected": "Revenue was INR9,384m.", "holdout": False}
+    golden = tmp_path / "golden.jsonl"
+    golden.write_text(json.dumps(row))
+    monkeypatch.setattr(cli, "GOLDEN", golden)
+    stub(monkeypatch, "agent", ask=lambda q, debug=False: reply("Revenue was INR 9,384 m. [A.pdf]", ("A.pdf",)))
+    cli.main(["ask", "what was  revenue"])  # matched whatever the case, spacing or question mark
+    out = capsys.readouterr().out
+    assert "1. Revenue was INR 9,384 m." in out and "source: A.pdf" in out
+    assert "EXPECTED (test case T1)" in out and "Revenue was INR9,384m." in out and "CHECK: PASS" in out
+    stub(monkeypatch, "agent", ask=lambda q, debug=False: reply("Revenue was INR 1 m. [A.pdf]", ("A.pdf",)))
+    cli.main(["ask", "What was revenue?"])
+    assert "CHECK: FAIL (missing 9,384 / 9.4)" in capsys.readouterr().out
+    cli.main(["ask", "Some other question"])
+    assert "EXPECTED" not in capsys.readouterr().out
+
+
 def test_ask_debug(monkeypatch, capsys):
     seen = []
     stub(monkeypatch, "agent", ask=lambda q, debug=False: seen.append(debug) or reply())

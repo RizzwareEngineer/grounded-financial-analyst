@@ -1,5 +1,9 @@
 import argparse
 import json
+import re
+import shutil
+import sys
+import textwrap
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
@@ -17,13 +21,47 @@ def cmd_ingest(args):
     print(f"cost ${s['cost_usd']:.4f}")
 
 
+def _bold(s):
+    return f"\033[1m{s}\033[0m" if sys.stdout.isatty() else s
+
+
+def _para(text, first="  ", rest="  "):
+    width = max(60, min(shutil.get_terminal_size().columns, 110))
+    return textwrap.fill(text, width=width, initial_indent=first, subsequent_indent=rest)
+
+
+def _test_case(question):
+    """The golden row with this question, if there is one: asking a test question also shows what was expected."""
+    def norm(s):
+        return " ".join(s.lower().split()).rstrip(" ?.")
+    rows = [json.loads(line) for line in GOLDEN.read_text().splitlines() if line.strip()] if GOLDEN.exists() else []
+    return next((row for row in rows if norm(row["question"]) == norm(question)), None)
+
+
 def cmd_ask(args):
-    from . import agent
+    from . import agent, evalcheck
     r = agent.ask(args.question, debug=args.debug)  # with --debug the agent prints each step as it happens
-    print(r["answer"])
+    print("\n" + _bold("ANSWER"))
+    n = 0
+    for line in r["answer"].splitlines():
+        claim = re.fullmatch(r"(.*?)((?: \[[^\]]+\])+)", line)  # a statement ends with its sources: text [a.pdf] [b.pdf]
+        if not claim:  # the refusal line, or a note
+            print(_para(line) + "\n")
+            continue
+        n += 1
+        print(_para(claim[1], f"  {n}. ", "     "))
+        print("     source: " + ", ".join(re.findall(r"\[([^\]]+)\]", claim[2])) + "\n")
     if not r["refused"]:
         print("Sources: " + ", ".join(r["cited"]))
-    print(f"cost ${r['cost_usd']:.4f}")
+    row = _test_case(args.question)
+    if row:  # the same check `eval` runs: expected numbers or words, expected sources, refuse or not
+        passed, reasons = evalcheck.check(row, r["answer"], r["cited"], r["refused"])
+        print("\n" + _bold(f"EXPECTED (test case {row['id']})"))
+        print(_para(row.get("expected") or "A refusal: the reports do not contain this."))
+        needs = [" or ".join(group) for group in row["must_include"]] + [f"a citation of {doc}" for doc in row["must_cite"]]
+        print(_para("The check needs: " + ("; ".join(needs) if row["should_refuse"] != "yes" else "a refusal")))
+        print(_bold("CHECK: PASS" if passed else "CHECK: FAIL") + ("" if passed else " (" + "; ".join(reasons) + ")"))
+    print(f"\ncost ${r['cost_usd']:.4f}")
 
 
 def cmd_eval(args):

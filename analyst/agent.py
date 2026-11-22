@@ -223,6 +223,19 @@ def summary(result):
     return f"{len(rows)} rows"
 
 
+def step_line(entry):
+    """One trace entry as lines a person can read; this is what --debug prints while the agent works."""
+    if "tool" not in entry:
+        return f'round {entry["round"]}  {entry.get("check", entry)}'
+    args, result = entry["args"], entry["summary"]
+    call = " ".join(str(args["sql"]).split()) if "sql" in args else ", ".join(f"{k}={v!r}" for k, v in args.items())
+    if result.startswith("chunks: "):  # ids are doc:page:n; the pages say more than the ids
+        ids = result[len("chunks: "):].split(", ")
+        pages = sorted({int(p) for p in (i.rsplit(":", 2)[-2] for i in ids if i.count(":") >= 2) if p.isdigit()})
+        result = f"{len(ids)} chunks" + (f' from page{"s" if len(pages) > 1 else ""} {", ".join(map(str, pages))}' if pages else "")
+    return f'round {entry["round"]}  {entry["tool"]}: {call}\n         -> {result}'
+
+
 def ask(question, data=store.DATA, debug=False):
     conn, coll, client = store.connect(data, readonly=True), store.collection(data), llm.client()
     known_docs = {r["doc"] for r in tools.list_reports(conn)}
@@ -235,7 +248,7 @@ def ask(question, data=store.DATA, debug=False):
     def note(entry):
         trace.append(entry)
         if debug:
-            print(json.dumps(entry, default=str), file=sys.stderr)
+            print(step_line(entry), file=sys.stderr)
 
     for rnd in range(1, MAX_ROUNDS + 1):
         if rnd == MAX_ROUNDS:
