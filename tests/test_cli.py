@@ -48,10 +48,10 @@ def test_ask_refusal_has_no_sources(monkeypatch, capsys):
 
 
 def test_ask_debug(monkeypatch, capsys):
-    stub(monkeypatch, "agent", ask=lambda q, debug=False: reply())
+    seen = []
+    stub(monkeypatch, "agent", ask=lambda q, debug=False: seen.append(debug) or reply())
     cli.main(["ask", "q", "--debug"])
-    out = capsys.readouterr().out
-    assert "trace: round 1" in out and "trace: round 2" in out
+    assert seen == [True] and "trace" not in capsys.readouterr().out  # the agent prints the steps itself, once
 
 
 @pytest.fixture

@@ -19,14 +19,11 @@ def cmd_ingest(args):
 
 def cmd_ask(args):
     from . import agent
-    r = agent.ask(args.question, debug=args.debug)
+    r = agent.ask(args.question, debug=args.debug)  # with --debug the agent prints each step as it happens
     print(r["answer"])
     if not r["refused"]:
         print("Sources: " + ", ".join(r["cited"]))
     print(f"cost ${r['cost_usd']:.4f}")
-    if args.debug:
-        for entry in r["trace"]:
-            print(f"trace: {entry}")
 
 
 def cmd_eval(args):
