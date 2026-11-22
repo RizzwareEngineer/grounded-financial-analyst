@@ -6,7 +6,7 @@ A command-line analyst that answers questions over a folder of broker research P
 
 ![System design](design/system-design.png)
 
-[Open the diagram in Excalidraw](https://excalidraw.com/#json=Skj9G0DsJi7WVYTQW2Hgl,eEaS-5sN2eC35J4a7LYAHA) (use a private window if you already have a drawing open there), or load [design/system-design.excalidraw](design/system-design.excalidraw).
+[Open the diagram in Excalidraw](https://excalidraw.com/#json=aqtb8Bf5-akUSDwmIPj4F,3NEGRYvBDSxzfbNC-KFvWQ) (use a private window if you already have a drawing open there), or load [design/system-design.excalidraw](design/system-design.excalidraw).
 
 ## Walkthrough
 
@@ -40,7 +40,21 @@ A command-line analyst that answers questions over a folder of broker research P
 
 ### Eval (after every change)
 
-`evals/golden.jsonl` holds 44 questions, each with the numbers an answer must contain, the reports it must cite, and whether it should refuse. `python -m analyst eval` runs each question through the CLI and plain Python scores it; no model grades the answers. The expected values were checked against the PDF text, and 15 questions are held out from tuning.
+`evals/golden.jsonl` holds 47 questions, each with the numbers an answer must contain, the reports it must cite, and whether it should refuse. `python -m analyst eval` runs each question through the CLI and plain Python scores it; no model grades the answers. The expected values were checked against the PDF text, and 15 questions are held out from tuning.
+
+| Kind of question | Count | Example |
+|---|---|---|
+| Lookup: one or a few cells of one report | 8 | Revenue against the broker's estimate |
+| Derivation | 5 | How a target price is arrived at |
+| Multi-cell: several columns of one row, or one cell across reports in different units | 3 | A company's revenue in each quarter of a year |
+| Ranking and corpus-wide, across two to eight reports | 7 | Which stocks have a target price below the current price |
+| Sector | 4 | How did healthcare do last quarter |
+| Why and outlook | 6 | Why a margin fell |
+| The report contradicts itself | 4 | Two different figures for one line |
+| Should refuse | 6 | A company that is not in the corpus |
+| Wrong premise or half answerable | 4 | "Why was it downgraded?" when it wasn't |
+
+12 of the 47 need two or more reports. The brief's six samples are among them.
 
 **If something fails:** the scorecard prints the reason per question (a missing number, a missing citation, a wrong refusal), and `--failed` re-runs only those.
 
@@ -183,6 +197,14 @@ The stores and tools stay the same. The catalog moves out of the prompt into a l
 - A value misread into a neighbouring cell is only caught where a total exists to cross-check it.
 - Chart values are described, not measured, and are marked approximate.
 
-## Status
+## Results
 
-Build in progress. The eval scorecard and cost per question are added here when it finishes.
+| | |
+|---|---|
+| Ingest | 17 reports, 147 pages, 17,651 numbers, 580 text chunks. 146 pages pass every check; one page, a table that is an image, is flagged |
+| Tuning questions | 32 of 32 pass |
+| Held-out questions, run once | 14 of 15 pass |
+| Cost | About $0.07 a question on Claude Opus 5.5 (highest $0.19); about $0.0025 a page to ingest on Claude Haiku 5.5 |
+| Unit tests | 274 pass |
+
+The held-out miss asked for a five-year average P/E. The report only has a ten-year average, printed on a chart; the answer said the five-year figure isn't given and offered the ten-year one marked approximate, where the test expected a plain refusal.

@@ -23,10 +23,10 @@
    "roundness": null,
    "seed": 1390851129,
    "version": 2,
-   "versionNonce": 777358320,
+   "versionNonce": 1572994600,
    "isDeleted": false,
    "boundElements": [],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "text": "Grounded Financial Analyst: system design",
@@ -60,10 +60,10 @@
    "roundness": null,
    "seed": 1695753999,
    "version": 2,
-   "versionNonce": 881683216,
+   "versionNonce": 1442994264,
    "isDeleted": false,
    "boundElements": [],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "text": "QUERY (every question)",
@@ -97,10 +97,10 @@
    "roundness": null,
    "seed": 311111476,
    "version": 2,
-   "versionNonce": 899583472,
+   "versionNonce": 1143994664,
    "isDeleted": false,
    "boundElements": [],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "text": "Check 1, by the model: enough data yet?",
@@ -134,10 +134,10 @@
    "roundness": null,
    "seed": 1570621945,
    "version": 2,
-   "versionNonce": 1674414352,
+   "versionNonce": 1371901272,
    "isDeleted": false,
    "boundElements": [],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "text": "if not, call another tool (max 8 rounds)",
@@ -173,7 +173,7 @@
    },
    "seed": 922121677,
    "version": 2,
-   "versionNonce": 813125616,
+   "versionNonce": 1093047336,
    "isDeleted": false,
    "boundElements": [
     {
@@ -181,7 +181,7 @@
      "id": "user-t"
     }
    ],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "index": "a4"
@@ -206,10 +206,10 @@
    "roundness": null,
    "seed": 369140571,
    "version": 2,
-   "versionNonce": 827975440,
+   "versionNonce": 962208344,
    "isDeleted": false,
    "boundElements": [],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "text": "User\n(CLI)",
@@ -245,7 +245,7 @@
    },
    "seed": 1796035740,
    "version": 2,
-   "versionNonce": 384291312,
+   "versionNonce": 982634280,
    "isDeleted": false,
    "boundElements": [
     {
@@ -253,7 +253,7 @@
      "id": "a1-t"
     }
    ],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "points": [
@@ -294,10 +294,10 @@
    "roundness": null,
    "seed": 1033639717,
    "version": 2,
-   "versionNonce": 162170128,
+   "versionNonce": 1267996504,
    "isDeleted": false,
    "boundElements": [],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "text": "question",
@@ -333,7 +333,7 @@
    },
    "seed": 1823296039,
    "version": 2,
-   "versionNonce": 536351728,
+   "versionNonce": 2027792936,
    "isDeleted": false,
    "boundElements": [
     {
@@ -341,7 +341,7 @@
      "id": "agent-t"
     }
    ],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "index": "a8"
@@ -366,10 +366,10 @@
    "roundness": null,
    "seed": 531725348,
    "version": 2,
-   "versionNonce": 171402000,
+   "versionNonce": 1288137816,
    "isDeleted": false,
    "boundElements": [],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "text": "Agent loop\nClaude Opus 5.5",
@@ -405,10 +405,10 @@
    },
    "seed": 265695474,
    "version": 2,
-   "versionNonce": 1638929904,
+   "versionNonce": 1458971944,
    "isDeleted": false,
    "boundElements": [],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "index": "aA"
@@ -433,10 +433,10 @@
    "roundness": null,
    "seed": 212984477,
    "version": 2,
-   "versionNonce": 1635287312,
+   "versionNonce": 1455956312,
    "isDeleted": false,
    "boundElements": [],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "text": "tools",
@@ -472,7 +472,7 @@
    },
    "seed": 200071089,
    "version": 2,
-   "versionNonce": 1897388016,
+   "versionNonce": 1917272104,
    "isDeleted": false,
    "boundElements": [
     {
@@ -480,7 +480,7 @@
      "id": "a2-t"
     }
    ],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "points": [
@@ -521,10 +521,10 @@
    "roundness": null,
    "seed": 1243862423,
    "version": 2,
-   "versionNonce": 786816784,
+   "versionNonce": 686437976,
    "isDeleted": false,
    "boundElements": [],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "text": "call",
@@ -560,7 +560,7 @@
    },
    "seed": 619570853,
    "version": 2,
-   "versionNonce": 37181936,
+   "versionNonce": 1522334504,
    "isDeleted": false,
    "boundElements": [
     {
@@ -568,7 +568,7 @@
      "id": "a3-t"
     }
    ],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "points": [
@@ -609,10 +609,10 @@
    "roundness": null,
    "seed": 1324919353,
    "version": 2,
-   "versionNonce": 1660386576,
+   "versionNonce": 2013375320,
    "isDeleted": false,
    "boundElements": [],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "text": "result",
@@ -648,7 +648,7 @@
    },
    "seed": 442620899,
    "version": 2,
-   "versionNonce": 135699440,
+   "versionNonce": 1120097832,
    "isDeleted": false,
    "boundElements": [
     {
@@ -656,7 +656,7 @@
      "id": "t1-t"
     }
    ],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "index": "aG"
@@ -681,10 +681,10 @@
    "roundness": null,
    "seed": 1599435268,
    "version": 2,
-   "versionNonce": 522541840,
+   "versionNonce": 1046642776,
    "isDeleted": false,
    "boundElements": [],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "text": "list_reports()",
@@ -720,7 +720,7 @@
    },
    "seed": 269676600,
    "version": 2,
-   "versionNonce": 1421712880,
+   "versionNonce": 793137448,
    "isDeleted": false,
    "boundElements": [
     {
@@ -728,7 +728,7 @@
      "id": "t2-t"
     }
    ],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "index": "aI"
@@ -753,10 +753,10 @@
    "roundness": null,
    "seed": 884585952,
    "version": 2,
-   "versionNonce": 367491344,
+   "versionNonce": 199275864,
    "isDeleted": false,
    "boundElements": [],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "text": "list_labels(company)",
@@ -792,7 +792,7 @@
    },
    "seed": 1836494975,
    "version": 2,
-   "versionNonce": 959733744,
+   "versionNonce": 665971752,
    "isDeleted": false,
    "boundElements": [
     {
@@ -800,7 +800,7 @@
      "id": "t3-t"
     }
    ],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "index": "aK"
@@ -825,10 +825,10 @@
    "roundness": null,
    "seed": 1999744785,
    "version": 2,
-   "versionNonce": 1790301968,
+   "versionNonce": 1439713880,
    "isDeleted": false,
    "boundElements": [],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "text": "query_numbers(sql)",
@@ -864,7 +864,7 @@
    },
    "seed": 1552984409,
    "version": 2,
-   "versionNonce": 629334512,
+   "versionNonce": 1710368552,
    "isDeleted": false,
    "boundElements": [
     {
@@ -872,7 +872,7 @@
      "id": "t4-t"
     }
    ],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "index": "aM"
@@ -897,10 +897,10 @@
    "roundness": null,
    "seed": 1066984056,
    "version": 2,
-   "versionNonce": 302544144,
+   "versionNonce": 1191526232,
    "isDeleted": false,
    "boundElements": [],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "text": "search_text(query)",
@@ -936,7 +936,7 @@
    },
    "seed": 1048386556,
    "version": 2,
-   "versionNonce": 1219568624,
+   "versionNonce": 108200488,
    "isDeleted": false,
    "boundElements": [
     {
@@ -944,7 +944,7 @@
      "id": "t5-t"
     }
    ],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "index": "aO"
@@ -969,10 +969,10 @@
    "roundness": null,
    "seed": 1289560150,
    "version": 2,
-   "versionNonce": 827806480,
+   "versionNonce": 265524312,
    "isDeleted": false,
    "boundElements": [],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "text": "read_page(company, n)",
@@ -1006,10 +1006,10 @@
    "roundness": null,
    "seed": 1475216846,
    "version": 2,
-   "versionNonce": 818357744,
+   "versionNonce": 941653288,
    "isDeleted": false,
    "boundElements": [],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "text": "stores",
@@ -1045,7 +1045,7 @@
    },
    "seed": 1236683273,
    "version": 2,
-   "versionNonce": 2132439312,
+   "versionNonce": 906971480,
    "isDeleted": false,
    "boundElements": [
     {
@@ -1053,7 +1053,7 @@
      "id": "s1-t"
     }
    ],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "index": "aR"
@@ -1078,10 +1078,10 @@
    "roundness": null,
    "seed": 507088657,
    "version": 2,
-   "versionNonce": 1791813616,
+   "versionNonce": 1818662952,
    "isDeleted": false,
    "boundElements": [],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "text": "Catalog: 17 reports",
@@ -1117,7 +1117,7 @@
    },
    "seed": 708506837,
    "version": 2,
-   "versionNonce": 583651088,
+   "versionNonce": 1695309400,
    "isDeleted": false,
    "boundElements": [
     {
@@ -1125,7 +1125,7 @@
      "id": "s2-t"
     }
    ],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "index": "aT"
@@ -1150,10 +1150,10 @@
    "roundness": null,
    "seed": 652768598,
    "version": 2,
-   "versionNonce": 583690736,
+   "versionNonce": 120673064,
    "isDeleted": false,
    "boundElements": [],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "text": "SQLite: facts\n1 row per number",
@@ -1189,7 +1189,7 @@
    },
    "seed": 1811180650,
    "version": 2,
-   "versionNonce": 350055696,
+   "versionNonce": 1033818968,
    "isDeleted": false,
    "boundElements": [
     {
@@ -1197,7 +1197,7 @@
      "id": "s3-t"
     }
    ],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "index": "aV"
@@ -1222,10 +1222,10 @@
    "roundness": null,
    "seed": 333377415,
    "version": 2,
-   "versionNonce": 1137159152,
+   "versionNonce": 250392104,
    "isDeleted": false,
    "boundElements": [],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "text": "Text chunks\nChroma: MiniLM vectors\nFTS5: BM25 keywords",
@@ -1261,10 +1261,10 @@
    },
    "seed": 1460814403,
    "version": 2,
-   "versionNonce": 2127383312,
+   "versionNonce": 639281240,
    "isDeleted": false,
    "boundElements": [],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "points": [
@@ -1307,10 +1307,10 @@
    },
    "seed": 2133201996,
    "version": 2,
-   "versionNonce": 399289840,
+   "versionNonce": 1552197928,
    "isDeleted": false,
    "boundElements": [],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "points": [
@@ -1353,10 +1353,10 @@
    },
    "seed": 295334610,
    "version": 2,
-   "versionNonce": 454125840,
+   "versionNonce": 441703768,
    "isDeleted": false,
    "boundElements": [],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "points": [
@@ -1399,10 +1399,10 @@
    },
    "seed": 1159380354,
    "version": 2,
-   "versionNonce": 1742827504,
+   "versionNonce": 1264927784,
    "isDeleted": false,
    "boundElements": [],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "points": [
@@ -1445,10 +1445,10 @@
    },
    "seed": 279172787,
    "version": 2,
-   "versionNonce": 354535184,
+   "versionNonce": 2073981528,
    "isDeleted": false,
    "boundElements": [],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "points": [
@@ -1491,7 +1491,7 @@
    },
    "seed": 1329753548,
    "version": 2,
-   "versionNonce": 470675952,
+   "versionNonce": 1769635624,
    "isDeleted": false,
    "boundElements": [
     {
@@ -1499,7 +1499,7 @@
      "id": "a8-t"
     }
    ],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "points": [
@@ -1540,10 +1540,10 @@
    "roundness": null,
    "seed": 1222328496,
    "version": 2,
-   "versionNonce": 1769366800,
+   "versionNonce": 1624139608,
    "isDeleted": false,
    "boundElements": [],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "text": "draft",
@@ -1579,7 +1579,7 @@
    },
    "seed": 1490376254,
    "version": 2,
-   "versionNonce": 1532638192,
+   "versionNonce": 657480232,
    "isDeleted": false,
    "boundElements": [
     {
@@ -1587,7 +1587,7 @@
      "id": "a8b-t"
     }
    ],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "points": [
@@ -1628,10 +1628,10 @@
    "roundness": null,
    "seed": 1982966163,
    "version": 2,
-   "versionNonce": 1166492432,
+   "versionNonce": 1714928728,
    "isDeleted": false,
    "boundElements": [],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "text": "fix once",
@@ -1667,7 +1667,7 @@
    },
    "seed": 721762279,
    "version": 2,
-   "versionNonce": 734934512,
+   "versionNonce": 124966184,
    "isDeleted": false,
    "boundElements": [
     {
@@ -1675,7 +1675,7 @@
      "id": "check-t"
     }
    ],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "index": "ag"
@@ -1700,10 +1700,10 @@
    "roundness": null,
    "seed": 2120395275,
    "version": 2,
-   "versionNonce": 1741447440,
+   "versionNonce": 2108584280,
    "isDeleted": false,
    "boundElements": [],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "text": "Check 2, by code: answer check\ncited report came from a tool?\nevery number in a tool result?",
@@ -1739,10 +1739,10 @@
    },
    "seed": 937195260,
    "version": 2,
-   "versionNonce": 309458928,
+   "versionNonce": 1336799272,
    "isDeleted": false,
    "boundElements": [],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "points": [
@@ -1785,7 +1785,7 @@
    },
    "seed": 555512016,
    "version": 2,
-   "versionNonce": 2143141648,
+   "versionNonce": 1049003608,
    "isDeleted": false,
    "boundElements": [
     {
@@ -1793,7 +1793,7 @@
      "id": "ans-t"
     }
    ],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "index": "aj"
@@ -1818,10 +1818,10 @@
    "roundness": null,
    "seed": 1708957521,
    "version": 2,
-   "versionNonce": 860715504,
+   "versionNonce": 936225576,
    "isDeleted": false,
    "boundElements": [],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "text": "Answer + sources\nor \"not in corpus\"",
@@ -1857,10 +1857,10 @@
    },
    "seed": 2132480061,
    "version": 2,
-   "versionNonce": 231955728,
+   "versionNonce": 898890584,
    "isDeleted": false,
    "boundElements": [],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "points": [
@@ -1901,10 +1901,10 @@
    "roundness": null,
    "seed": 714537755,
    "version": 2,
-   "versionNonce": 1902689264,
+   "versionNonce": 440272424,
    "isDeleted": false,
    "boundElements": [],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "text": "INGEST (once)",
@@ -1940,7 +1940,7 @@
    },
    "seed": 1725048951,
    "version": 2,
-   "versionNonce": 1132804880,
+   "versionNonce": 891998296,
    "isDeleted": false,
    "boundElements": [
     {
@@ -1948,7 +1948,7 @@
      "id": "b1-t"
     }
    ],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "index": "an"
@@ -1973,10 +1973,10 @@
    "roundness": null,
    "seed": 588093311,
    "version": 2,
-   "versionNonce": 248233456,
+   "versionNonce": 602603816,
    "isDeleted": false,
    "boundElements": [],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "text": "17 PDFs",
@@ -2012,7 +2012,7 @@
    },
    "seed": 1195809358,
    "version": 2,
-   "versionNonce": 1665882384,
+   "versionNonce": 622789976,
    "isDeleted": false,
    "boundElements": [
     {
@@ -2020,7 +2020,7 @@
      "id": "b2-t"
     }
    ],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "index": "ap"
@@ -2045,10 +2045,10 @@
    "roundness": null,
    "seed": 1540910401,
    "version": 2,
-   "versionNonce": 1283358704,
+   "versionNonce": 71343144,
    "isDeleted": false,
    "boundElements": [],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "text": "Read each page\nPyMuPDF text +\nClaude vision",
@@ -2084,7 +2084,7 @@
    },
    "seed": 991070208,
    "version": 2,
-   "versionNonce": 547206928,
+   "versionNonce": 1388616280,
    "isDeleted": false,
    "boundElements": [
     {
@@ -2092,7 +2092,7 @@
      "id": "b3-t"
     }
    ],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "index": "ar"
@@ -2117,10 +2117,10 @@
    "roundness": null,
    "seed": 356416555,
    "version": 2,
-   "versionNonce": 176751088,
+   "versionNonce": 489346856,
    "isDeleted": false,
    "boundElements": [],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "text": "Check numbers\nagainst page text\n(code)",
@@ -2156,7 +2156,7 @@
    },
    "seed": 649821630,
    "version": 2,
-   "versionNonce": 2146718992,
+   "versionNonce": 1089441624,
    "isDeleted": false,
    "boundElements": [
     {
@@ -2164,7 +2164,7 @@
      "id": "b4-t"
     }
    ],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "index": "at"
@@ -2189,10 +2189,10 @@
    "roundness": null,
    "seed": 1002170859,
    "version": 2,
-   "versionNonce": 1743995888,
+   "versionNonce": 857059880,
    "isDeleted": false,
    "boundElements": [],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "text": "Split into\nrows + chunks,\nwrite search text",
@@ -2228,7 +2228,7 @@
    },
    "seed": 2082899072,
    "version": 2,
-   "versionNonce": 919024400,
+   "versionNonce": 2012472408,
    "isDeleted": false,
    "boundElements": [
     {
@@ -2236,7 +2236,7 @@
      "id": "b5-t"
     }
    ],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "index": "av"
@@ -2261,10 +2261,10 @@
    "roundness": null,
    "seed": 1128488134,
    "version": 2,
-   "versionNonce": 1657095664,
+   "versionNonce": 485305640,
    "isDeleted": false,
    "boundElements": [],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "text": "Embed + load\nMiniLM -> Chroma\nrows -> SQLite",
@@ -2300,10 +2300,10 @@
    },
    "seed": 17581914,
    "version": 2,
-   "versionNonce": 193876240,
+   "versionNonce": 1436916056,
    "isDeleted": false,
    "boundElements": [],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "points": [
@@ -2346,10 +2346,10 @@
    },
    "seed": 1799361520,
    "version": 2,
-   "versionNonce": 2013726704,
+   "versionNonce": 1948076072,
    "isDeleted": false,
    "boundElements": [],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "points": [
@@ -2392,10 +2392,10 @@
    },
    "seed": 1368426742,
    "version": 2,
-   "versionNonce": 901885712,
+   "versionNonce": 1566092888,
    "isDeleted": false,
    "boundElements": [],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "points": [
@@ -2438,10 +2438,10 @@
    },
    "seed": 231897702,
    "version": 2,
-   "versionNonce": 1136691696,
+   "versionNonce": 1150419752,
    "isDeleted": false,
    "boundElements": [],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "points": [
@@ -2484,7 +2484,7 @@
    },
    "seed": 1685254564,
    "version": 2,
-   "versionNonce": 1037651216,
+   "versionNonce": 132195160,
    "isDeleted": false,
    "boundElements": [
     {
@@ -2492,7 +2492,7 @@
      "id": "a15-t"
     }
    ],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "points": [
@@ -2533,10 +2533,10 @@
    "roundness": null,
    "seed": 1713601029,
    "version": 2,
-   "versionNonce": 553241584,
+   "versionNonce": 1018650152,
    "isDeleted": false,
    "boundElements": [],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "text": "load",
@@ -2570,10 +2570,10 @@
    "roundness": null,
    "seed": 444688429,
    "version": 2,
-   "versionNonce": 1565338384,
+   "versionNonce": 328398936,
    "isDeleted": false,
    "boundElements": [],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "text": "EVAL (after every change)",
@@ -2609,7 +2609,7 @@
    },
    "seed": 1719888007,
    "version": 2,
-   "versionNonce": 1236979184,
+   "versionNonce": 1568233768,
    "isDeleted": false,
    "boundElements": [
     {
@@ -2617,7 +2617,7 @@
      "id": "c1-t"
     }
    ],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "index": "b04"
@@ -2625,9 +2625,9 @@
   {
    "id": "c1-t",
    "type": "text",
-   "x": 79.17303466796876,
+   "x": 79.41603851318361,
    "y": 677.5,
-   "width": 111.6539306640625,
+   "width": 111.16792297363281,
    "height": 45,
    "angle": 0,
    "strokeColor": "#1e1e1e",
@@ -2642,14 +2642,14 @@
    "roundness": null,
    "seed": 818661758,
    "version": 2,
-   "versionNonce": 1586841872,
+   "versionNonce": 1413623128,
    "isDeleted": false,
    "boundElements": [],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
-   "text": "golden.jsonl\n44 questions",
-   "originalText": "golden.jsonl\n44 questions",
+   "text": "golden.jsonl\n47 questions",
+   "originalText": "golden.jsonl\n47 questions",
    "fontSize": 18,
    "fontFamily": 5,
    "textAlign": "center",
@@ -2681,7 +2681,7 @@
    },
    "seed": 896631051,
    "version": 2,
-   "versionNonce": 1997246448,
+   "versionNonce": 709096488,
    "isDeleted": false,
    "boundElements": [
     {
@@ -2689,7 +2689,7 @@
      "id": "c2-t"
     }
    ],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "index": "b06"
@@ -2714,10 +2714,10 @@
    "roundness": null,
    "seed": 697086886,
    "version": 2,
-   "versionNonce": 2099881744,
+   "versionNonce": 54706776,
    "isDeleted": false,
    "boundElements": [],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "text": "Run the CLI\non each question",
@@ -2753,7 +2753,7 @@
    },
    "seed": 1460519318,
    "version": 2,
-   "versionNonce": 15995376,
+   "versionNonce": 1493380904,
    "isDeleted": false,
    "boundElements": [
     {
@@ -2761,7 +2761,7 @@
      "id": "c3-t"
     }
    ],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "index": "b08"
@@ -2786,10 +2786,10 @@
    "roundness": null,
    "seed": 439717025,
    "version": 2,
-   "versionNonce": 1166165264,
+   "versionNonce": 258520920,
    "isDeleted": false,
    "boundElements": [],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "text": "Code checks\nnumbers, sources,\nrefusals",
@@ -2825,7 +2825,7 @@
    },
    "seed": 649677952,
    "version": 2,
-   "versionNonce": 2122077168,
+   "versionNonce": 35850792,
    "isDeleted": false,
    "boundElements": [
     {
@@ -2833,7 +2833,7 @@
      "id": "c4-t"
     }
    ],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "index": "b0A"
@@ -2858,10 +2858,10 @@
    "roundness": null,
    "seed": 1561692720,
    "version": 2,
-   "versionNonce": 1964450576,
+   "versionNonce": 1829243992,
    "isDeleted": false,
    "boundElements": [],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "text": "Scorecard\npass / fail",
@@ -2897,10 +2897,10 @@
    },
    "seed": 302003102,
    "version": 2,
-   "versionNonce": 1705793008,
+   "versionNonce": 1351583016,
    "isDeleted": false,
    "boundElements": [],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "points": [
@@ -2943,10 +2943,10 @@
    },
    "seed": 1615892811,
    "version": 2,
-   "versionNonce": 1516257552,
+   "versionNonce": 1710539096,
    "isDeleted": false,
    "boundElements": [],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "points": [
@@ -2989,10 +2989,10 @@
    },
    "seed": 1083438815,
    "version": 2,
-   "versionNonce": 730601456,
+   "versionNonce": 833921064,
    "isDeleted": false,
    "boundElements": [],
-   "updated": 1795381483628,
+   "updated": 1795381805693,
    "link": null,
    "locked": false,
    "points": [
