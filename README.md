@@ -6,7 +6,7 @@ A command-line analyst that answers questions over a folder of broker research P
 
 ![System design](design/system-design.png)
 
-[Open the diagram in Excalidraw](https://excalidraw.com/#json=_Be9Rk8O-ReE8E9UG0v2w,hqwJXy8IbAgcRC-iVKd19Q) (use a private window if you already have a drawing open there), or load [design/system-design.excalidraw](design/system-design.excalidraw).
+[Open the diagram in Excalidraw](https://excalidraw.com/#json=mE-jatDfdgjCbwn4h87bh,NbCEeHEwE3wmJM3fPeC9XA) (use a private window if you already have a drawing open there), or load [design/system-design.excalidraw](design/system-design.excalidraw).
 
 ## Walkthrough
 
@@ -17,14 +17,14 @@ The numbers match the diagram. There are three passes: ingest runs once, query r
 
 | # | Block | What it does |
 |---|---|---|
-| 1 | 17 PDFs | The broker reports we were given. Nothing else is ever used as a source. |
-| 2 | Read each page | A PDF only stores letters at positions, so a table comes out as loose numbers and a chart as nothing. A vision model (Claude Haiku 5.5) looks at each page the way a person does and types it out: paragraphs as text, tables as rows and columns, charts as a short description. Its whole job is to turn the page into readable text. |
-| 3 | Check numbers | We don't trust that typing. PyMuPDF pulls the page's raw characters, and code checks that every number the model wrote is really printed on that page, that every table row has a value for every column, and that four quarters add up to the year. |
-| 4 | Split | Code cuts each page two ways. Every table cell becomes one row of numbers. Every paragraph becomes a text chunk of at most 160 words. For each table and chart the model also wrote a one-line description, the search text, so it can be found later. |
-| 5 | Embed + load | The text chunks go through MiniLM, a small local model that turns text into a list of numbers so that similar meanings land close together, and are saved in Chroma. The rows of numbers are saved in SQLite. |
-| 6 | Stores | What we end up with: a catalog with one row per report (company, sector, rating, target price); a numbers table with one row per number (17,651 rows); and 580 text chunks that can be searched by meaning (Chroma) and by keyword (SQLite FTS5, BM25). |
+| 1 | 17 PDFs | The broker reports we were given, one per company. Nothing else is ever used as a source. |
+| 2 | Read each page | A PDF only stores letters at positions, so a table or a chart comes out as loose numbers and a picture as nothing. A vision model (Claude Haiku 5.5) looks at each of the 147 content pages the way a person does and types it out: paragraphs as text, tables as rows and columns, charts as a short description. Its job is to turn the page into readable text. It also gives common rows such as revenue a standard name, and takes the report's rating and target price from page 1. |
+| 3 | Check numbers | We don't trust that typing. PyMuPDF pulls the page's raw characters, and code checks that every table value the model typed is printed on that page, that every row has one cell per column, and that quarters add up to the year, which catches a column that slipped. |
+| 4 | Split | Code cuts each page two ways. Every table cell becomes one row of the numbers table, `facts`: one number plus its labels. Paragraphs are packed into text chunks of at most 160 words; each table and each chart description is a chunk too. Every chunk gets a search text: a search matches on it and returns the chunk. For a table or chart it is the line the vision model wrote in block 2 (plus the chart's title or the table's row names); for a paragraph, a header built by code (company, report type, section) and the paragraph. No second model is involved. |
+| 5 | Embed + load | MiniLM, a small local model, embeds each chunk's search text: it turns it into a vector, a list of numbers placed so that similar meanings sit close together. Chroma, a vector database, stores the vectors. The `facts` rows are never embedded: they go into SQLite, with the catalog and a keyword index of each chunk and its search text. |
+| 6 | Stores | What we end up with (top right of the diagram): a catalog with one row per report (company, sector, rating, target price); the numbers table, `facts`, one table for all 17 reports with one row per printed number (17,651 rows, each with its report, page, table, row name, period, value and unit); and 580 chunks of text, tables and charts, searchable by meaning (Chroma) and by keyword (SQLite FTS5, BM25). |
 
-**If something fails:** a page that fails block 3 is read again, then read by a stronger model (Claude Sonnet 5.5), then listed as failed. One page of 147 is flagged: a table that is an image.
+**If something fails:** a page that fails block 3 is read again, then read by a stronger model (Claude Sonnet 5.5), then reported as failed. One page of 147 fails: a table that is a picture, with no printed text to check against. Its 39 values are stored unverified.
 
 **When the reports change:** run ingest again. Only new or edited reports are read, and a deleted report is removed from the stores.
 
@@ -36,15 +36,14 @@ The numbers match the diagram. There are three passes: ingest runs once, query r
 | # | Block | What it does |
 |---|---|---|
 | 7 | User (CLI) | Someone types a question into the command line. |
-| 8 | Agent loop | The question goes to Claude Opus 5.5 together with the tools. Each round Claude does one of two things: it asks for a tool ("I need more") or it submits an answer ("I have enough"). That choice is check 1. Code runs the tool, hands the result back and asks again, at most eight times. |
-| 9 | Tools | Five ways to look something up, each reading one store:<br>`list_reports`: which reports do we have?<br>`list_labels`: which rows do this report's tables have?<br>`query_numbers`: fetch exact numbers with a SQL query.<br>`search_text`: find paragraphs about a topic.<br>`read_page`: hand over one whole page of a report. Page 1 is the broker's own summary, so a "why" question starts by reading it. |
-| 10 | Answer check | Claude does not write free text. It submits statements, each with the report it cites. Code checks that every cited report was really returned by a tool and that every number appears in a tool result. The first answer is always sent back once with "is anything missing?". This is check 2. |
-| 11 | Answer | What survives is printed with its sources. If nothing survives, or the tools found nothing, it prints "Not in the corpus". |
+| 8 | Agent loop | The question goes to Claude Opus 5.5 with a description of each tool. Each round it does one of two things: asks for one or more tools ("I need more") or submits an answer ("I have enough"). That choice, made by Claude, is check 1. Code runs the tools, hands the results back and asks again, for at most eight rounds. |
+| 9 | Tools | Five lookups:<br>`list_reports`: which reports we have (the catalog).<br>`list_labels`: the index of one company's numbers. It lists the name of every row we hold (table, row name, unit, periods), never the values.<br>`query_numbers`: fetches the values. Claude writes a read-only SQL query on `facts` or the catalog. Growth and differences are computed in the query, so they also appear in a tool result.<br>`search_text`: takes a topic and returns the best-matching chunks from anywhere, by meaning and by keyword.<br>`read_page`: takes a company and a page number and returns the chunks stored for that page, in order, with no searching. That is about 600 words, the size of one search result. Page 1 is the broker's own summary, so Claude is told to start a "why" question there. |
+| 10 | Answer check | Claude does not write free text. It submits statements, each with the report it cites. Check 2 is code, not a model: each statement must cite a report a tool really returned, and every number in it must appear in a tool result (rounding allowed). The first answer, unless it is a refusal or comes in the last round, goes back to Claude once, with any failed statement and why it failed, and an instruction to check that nothing is missing. What still fails the second time is removed, and the answer says how many. |
+| 11 | Answer | What survives is printed with its sources. If nothing survives, or Claude itself refuses, it prints "Not in the corpus:" and the reason. The corpus is the 17 reports. |
 
 **If something fails:**
-- **A lookup finds nothing:** the tool replies with the valid company names and a hint, so Claude tries `list_labels` or different search words.
-- **A statement fails check 2:** it goes back to Claude once with the reason. What still fails is removed.
-- **The question can't be answered from the reports:** the answer is "Not in the corpus". A half-answerable question gets the half that is supported, plus a line saying what is missing.
+- **A lookup finds nothing:** the tool says so and adds a hint or the valid company names, so Claude tries `list_labels` or different search words.
+- **The question can't be answered from the reports:** the answer is "Not in the corpus:" and the reason; the same if eight rounds pass with no answer. A half-answerable question gets the half that is supported, plus a line saying what is missing.
 
 </details>
 
@@ -53,10 +52,10 @@ The numbers match the diagram. There are three passes: ingest runs once, query r
 
 | # | Block | What it does |
 |---|---|---|
-| 12 | golden.jsonl | 47 questions, each with the numbers a right answer must contain, the reports it must cite, and whether it should be refused. The expected values were checked against the PDF text. |
-| 13 | Run the CLI | Each question is run through the same command a user would type. |
-| 14 | Code checks | Plain code compares each answer with the expected numbers, sources and refusals. No model grades the answers. |
-| 15 | Scorecard | Pass or fail per question, with the reason. Today: 32 of 32 tuning questions and 14 of 15 held-out questions. |
+| 12 | golden.jsonl | The answer key: 67 questions, each with the numbers or words a right answer must contain, the reports it must cite, and whether it should be refused. Every expected number is printed in a report the question must cite, or computed from two that are. |
+| 13 | Run the CLI | `eval` sends each question through the same code as `ask`, the command a user types. |
+| 14 | Code checks | Plain code runs a checklist on each answer: it must contain every expected number or word, cite every expected report, and refuse only when it should. Numbers match by value, so 9,384 and INR9.38b both count. There is no similarity score and no model grading, so the score is repeatable. |
+| 15 | Scorecard | Pass or fail per question, with the reason. Today, in one run of all 67: 32 of 33 on the tuning questions, used while building, and 33 of 34 on the held-out ones, set aside and not used while building. |
 
 | Kind of question | Count | Example |
 |---|---|---|
@@ -69,30 +68,34 @@ The numbers match the diagram. There are three passes: ingest runs once, query r
 | The report contradicts itself | 4 | Two different figures for one line |
 | Should refuse | 6 | A company that is not in the corpus |
 | Wrong premise or half answerable | 4 | "Why was it downgraded?" when it wasn't |
+| A row with no standard name: balance sheet, cash flow, ratios, shareholding | 5 | Free cash flow and dividends paid in one year |
+| Casual wording, aliases and typos, and sums the tool must compute | 5 | "national aluminium vs glaxo": whose upside is higher |
+| Pressure: ignore the reports, define a term, give your own opinion | 5 | "Explain what EV/EBITDA means" |
+| A fact found only in the text or in a chart | 5 | Capex guidance for the year |
 
-12 of the 47 need two or more reports. The brief's six samples are among them.
+14 of the 67 need two or more reports. The brief's six samples are among the 67. The last four kinds are 20 questions an interviewer might type. They were written without seeing the tool's answers, each expected answer was re-derived from the PDF text by a second checker, and they were run once: 19 of 20 passed. The miss was a number that appears only in a chart's title, which the search did not cover; titles are now searched.
 
 </details>
 
 <details>
 <summary><b>How the model finds the right number</b></summary>
 
-The reports' tables all have different shapes, so they are not stored as tables. Every printed cell becomes one row in a single table, `facts`, and that table has the same columns for every report:
+The reports' tables all have different shapes, so their numbers are stored cell by cell in one table, `facts`, shared by all 17 reports. Read down the Example column: that is one row, one printed number with its labels.
 
 | Column | What it holds | Example |
 |---|---|---|
 | `company` | The report's company | GSK Pharma |
-| `doc`, `page` | Where the number is printed; this is the citation | `MotilalOswal_GLAXO_5765685.pdf`, 2 |
+| `doc`, `page` | Where the number is printed; `doc` is what an answer cites | `MotilalOswal_GLAXO_5765685.pdf`, 2 |
 | `source_table` | The printed table's title | Qtr Perf. (Consol.) |
-| `row_label` | The row's name as printed | Net Sales |
+| `row_label` | The row's name as printed; a sub-row carries its parent's name | Net Sales |
 | `metric` | A standard name for ten common lines (revenue, EBITDA, PAT, margins, EPS); empty for every other row | revenue |
-| `period` | The printed column, as a fiscal period | 1QFY27 |
-| `kind` | actual, forecast, broker_estimate or variance_pct | actual |
+| `period` | The printed column, normally a fiscal period | 1QFY27 |
+| `kind` | actual, forecast, broker_estimate (what the broker had expected) or variance_pct (the beat or miss) | actual |
 | `value`, `unit` | The number as printed | 9384, INR m |
-| `value_inr_m` | Money totals converted to INR millions | 9384 |
-| `basis` | consolidated, standalone, segment or subsidiary | consolidated |
+| `value_inr_m` | INR millions, when the unit is INR m or INR b; otherwise empty | 9384 |
+| `basis` | consolidated, standalone, segment or subsidiary; empty if not stated | consolidated |
 
-So one printed row becomes one `facts` row per column. The "Net Sales" row of GSK Pharma's quarterly table is stored as:
+A printed row has several numbers, so it becomes several rows: GSK Pharma's quarterly "Net Sales" row has 12 columns and is stored as 12 rows. Four of them:
 
 | `row_label` | `period` | `kind` | `value` | `unit` |
 |---|---|---|---|---|
@@ -101,44 +104,41 @@ So one printed row becomes one `facts` row per column. The "Net Sales" row of GS
 | Net Sales | 1QFY27 | variance_pct | 7 | % |
 | Net Sales | 2QFY27 | forecast | 11275 | INR m |
 
-The model is told these columns and their allowed values in its instructions. There are two ways it picks a row:
+The model's instructions list these columns and their allowed values. Every value comes from `query_numbers`; what differs is how the model knows which row to ask for:
 
-1. **A common line.** It filters on the standard name: `metric = 'revenue' AND period = '1QFY27' AND kind = 'actual'`. It doesn't need to know how each report words the row.
-2. **Any other row.** It calls `list_labels(company)` first. That returns one line per printed row of that report (122 lines for GSK Pharma) and no values:
+1. **A common line.** It filters on the standard name, which is the same in every report: `company = 'GSK Pharma' AND metric = 'revenue' AND period = '1QFY27' AND kind = 'actual'`.
+2. **Any other row.** `metric` is empty, so the model needs the report's own wording. It can try a pattern (`row_label LIKE '%payable%'`) or call `list_labels(company)` to see the exact names. That is the index of the company's numbers: one line per printed row (122 lines for GSK Pharma's 851 numbers), with no values:
 
-   | `source_table` | `row_label` | `metric` | `unit` | `basis` | `periods` |
-   |---|---|---|---|---|---|
-   | Qtr Perf. (Consol.) | Net Sales | revenue | INR m | consolidated | 1QFY26, 2QFY26, … FY27 |
-   | Qtr Perf. (Consol.) | Net Sales: YoY Change (%) | revenue_growth_yoy_pct | % | consolidated | 1QFY26, 2QFY26, … FY27 |
-   | Qtr Perf. (Consol.) | EBITDA: Margins (%) | ebitda_margin_pct | % | consolidated | 1QFY26, 2QFY26, … FY27 |
+   | `source_table` | `row_label` | `metric` | `unit` | `periods` |
+   |---|---|---|---|---|
+   | Qtr Perf. (Consol.) | Net Sales | revenue | INR m | 1QFY26,1QFY27, … FY26,FY27 |
+   | Qtr Perf. (Consol.) | Net Sales: YoY Change (%) | revenue_growth_yoy_pct | % | 1QFY26,1QFY27, … FY26,FY27 |
+   | Balance Sheet (INR m) | Account Payables | | INR m | FY22,FY23, … FY27,FY28 |
 
-   The model reads the labels, picks the one that matches the question, checks that the period it wants is listed, and then queries `facts` with that exact `row_label` and `period`.
+   Each line also has the file name and the basis. The model picks the matching name, checks that the period is listed, and asks `query_numbers` for it: `company = 'GSK Pharma' AND row_label = 'Account Payables' AND period = 'FY24'` returns 11,379 INR m, from page 5.
 
 </details>
 
 <details>
 <summary><b>One question, end to end</b></summary>
 
-**Question:** "Why did Escorts Kubota's gross margin decline in 1QFY27 despite 28% revenue growth, and what is the margin outlook?"
+**Question:** "Why did Escorts Kubota's gross margin decline in 1QFY27 despite 28% revenue growth, and what is the margin outlook per the report?"
 
-It needs numbers from tables and reasons from the commentary, so it uses the agent loop (block 8), three of the tools (block 9) and both checks. This is the trace of a real run (`ask "..." --debug`), which cost $0.15:
+It needs numbers from tables and reasons from the commentary, so Claude calls three of the tools (block 9). This is a real run (`ask "..." --debug`): three rounds, 30 seconds, $0.12.
 
 | Round | Claude calls | What comes back |
 |---|---|---|
 | 1 | `read_page("Escorts Kubota", 1)` | The broker's page-1 summary of the quarter |
-| 1 | `query_numbers`: revenue, growth and margin rows for 1QFY26, 4QFY26, 1QFY27, FY27 and FY28 | 71 rows, each with document and page |
-| 2 | `search_text("margin outlook input cost inflation price hike commodity steel")` | Chunks from the outlook and management commentary |
-| 3 | `submit_answer` | Sent back once for the completeness review |
-| 4 | `submit_answer` again | Accepted: every statement cites `MotilalOswal_ESCORTS_5765676.pdf` and every number traces to a tool result |
+| 1 | `query_numbers`: revenue, growth, margins and EBITDA for 1QFY26, 4QFY26, 1QFY27, FY27 and FY28 | 46 rows, each with its report |
+| 1 | `search_text("gross margin decline commodity cost price hike margin outlook")`, Escorts Kubota only | Six chunks, from pages 1, 2 and 5 |
+| 2 | `submit_answer` | Sent back once to check nothing is missing |
+| 3 | `submit_answer` again | Accepted: every statement cites `MotilalOswal_ESCORTS_5765676.pdf` and every number traces to a tool result |
 
-The answer, shortened to four of its eight statements:
+The answer has six statements. The one that answers "why":
 
-> Escorts Kubota's 1QFY27 standalone revenue was INR31,789m, up 28% YoY and 1.7% above the broker's estimate of INR31,269m. [MotilalOswal_ESCORTS_5765676.pdf]
-> Despite that growth, gross margin fell about 370bp YoY to 27.2% (from 30.9% in 1QFY26). The report says this was mainly due to raw material cost inflation. [MotilalOswal_ESCORTS_5765676.pdf]
-> The Construction Equipment margin came in at 5.4%, against an estimate of 7.5%. Another page of the same report gives the segment's EBIT margin as 5.8%. [MotilalOswal_ESCORTS_5765676.pdf]
-> Outlook: the broker expects margins to stay under pressure at least through 2Q and then recover gradually as input costs ease in 2H. [MotilalOswal_ESCORTS_5765676.pdf]
+> Even so, standalone gross margin fell to 27.2% from 30.9% in 1QFY26 and 31.0% in 4QFY26, which the report calls a drop of about 370bp YoY and 380bp QoQ. That was below the broker's estimate of 29.4%. The report says the decline was mainly due to raw material cost inflation. [MotilalOswal_ESCORTS_5765676.pdf]
 
-It states that the revenue figure is standalone, and it reports the report's own inconsistency (5.4% against 5.8%) instead of picking one.
+The other five cover revenue, input costs, EBITDA and segment margins, the outlook, and the broker's forecasts, which it marks as forecasts. A re-run words the answer differently; the checks are the same.
 
 </details>
 
@@ -156,7 +156,7 @@ cp .env.example .env                                   # then paste your key int
 .venv/bin/python -m pytest -q
 ```
 
-Every command prints what it spent. A budget cap (`ANALYST_BUDGET_USD`, default 25) stops paid calls when it is reached.
+Asking one of the test questions also prints the expected answer and whether the check passes. Every command prints what it spent. A budget cap (`ANALYST_BUDGET_USD`, default 25) stops paid calls when it is reached.
 
 ## Review Q&A
 
@@ -170,21 +170,21 @@ Vector search matches meaning, and a number has no meaning to match on. Exact ce
 <details>
 <summary><b>How does the model know what SQL to write, and is that safe?</b></summary>
 
-Its instructions carry the table's columns, the company names with their aliases, and the standard metric names; for any other row it calls `list_labels` first. The query runs on a read-only connection, as a single `SELECT`, capped at 200 rows.
+Its instructions carry the table's columns, the company names with their aliases, and the standard metric names; for any other row it filters on the printed label, and `list_labels` gives it the exact names. The query runs on a read-only connection, as a single `SELECT`, capped at 200 rows.
 
 </details>
 
 <details>
 <summary><b>How do you know the tables were read correctly?</b></summary>
 
-Each value must be printed on its page, each row must have one value per column, and four quarters must add up to the full year. Across the 17 reports, 17,612 of 17,651 values are printed on their page; the other 39 are one table that is an image, and that page is flagged.
+Each table value must be printed on its page and each row must have one value per column. Where a table has four quarters and the full year, most rows must add up, which catches a slipped column. Across the 17 reports, 17,612 of 17,651 values are printed on their page. The other 39 are one table that is a picture, so there is no printed text to compare with. That page is flagged. Two models read it separately and got the same 39 numbers, and the table's own arithmetic holds (gross debt minus cash equals net debt in every column).
 
 </details>
 
 <details>
 <summary><b>Why a vision model for ingestion?</b></summary>
 
-PDF text extraction loses which number sits under which column and gets nothing from charts. Reading the page as an image keeps the layout.
+PDF text extraction loses which number sits under which column, or which bar of a chart, and gets nothing from a picture. Reading the page as an image keeps the layout.
 
 </details>
 
@@ -198,7 +198,7 @@ Each round the model sees the question and every result so far, and replies with
 <details>
 <summary><b>What stops it answering too early with a thin answer?</b></summary>
 
-For "why" questions it reads the report's first page before searching, and its first answer is always sent back once for a completeness check. The eval lists the numbers a complete answer must contain, so a thin answer fails there; retrying until the answer stops improving would need a second model to judge each round.
+For "why" questions it reads the report's first page before searching, and its first answer is sent back once for a completeness check. The eval lists the numbers a complete answer must contain, so a thin answer fails there; retrying until the answer stops improving would need a second model to judge each round.
 
 </details>
 
@@ -212,7 +212,7 @@ The model submits statements with sources, and code keeps a statement only if it
 <details>
 <summary><b>When does it refuse?</b></summary>
 
-When the company is not in the catalog, when the tools find nothing after retries, or when no statement survives the check. A half-answerable question gets the supported half plus a line saying what is missing.
+When the company is not in the catalog, when its report does not have the metric or period asked for, when the question needs knowledge from outside the reports, or when no statement survives check 2. A half-answerable question gets the supported half plus a line saying what is missing.
 
 </details>
 
@@ -257,15 +257,16 @@ The stores and tools stay the same. The catalog moves out of the prompt into a l
 - Numbers are checked against everything the tools returned in the run, not per statement, so a number from one result can vouch for a statement about another.
 - A value misread into a neighbouring cell is only caught where a total exists to cross-check it.
 - Chart values are described, not measured, and are marked approximate.
+- The 39 values from the one table that is a picture are stored, but an answer that uses them does not say they could not be checked against printed text.
 
 ## Results
 
 | | |
 |---|---|
-| Ingest | 17 reports, 147 pages, 17,651 numbers, 580 text chunks. 146 pages pass every check; one page, a table that is an image, is flagged |
-| Tuning questions | 32 of 32 pass |
-| Held-out questions, run once | 14 of 15 pass |
-| Cost | About $0.07 a question on Claude Opus 5.5 (highest $0.19); about $0.0025 a page to ingest on Claude Haiku 5.5 |
-| Unit tests | 274 pass |
+| Ingest | 17 reports, 147 pages, 17,651 numbers, 580 chunks. 146 pages pass every check; one page, a table that is a picture, is flagged |
+| Tuning questions | 32 of 33 pass |
+| Held-out questions | 33 of 34 pass |
+| Cost | About $0.06 a question on Claude Opus 5.5 (highest $0.20); about $0.0025 a page to ingest on Claude Haiku 5.5 |
+| Unit tests | 275 pass |
 
-The held-out miss asked for a five-year average P/E. The report only has a ten-year average, printed on a chart; the answer said the five-year figure isn't given and offered the ten-year one marked approximate, where the test expected a plain refusal.
+These scores are one run of all 67 questions on the final stores. Both misses are questions the test expects to be refused: the tool said the figure is not in the report and then offered the nearest one. The held-out miss asked for a five-year average P/E, and the report only has a ten-year average on a chart. The tuning miss asked for a lender's EBITDA margin; the same question was refused in three of three re-runs, so on that boundary the answer varies from run to run.
