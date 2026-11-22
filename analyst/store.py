@@ -1,11 +1,13 @@
 """Storage: SQLite holds the catalog, the numbers and a BM25 keyword index; Chroma holds the vectors."""
+import os
 import re
 import sqlite3
+import threading
 from pathlib import Path
 
 import chromadb
 
-DATA = Path(__file__).resolve().parent.parent / "data"
+DATA = Path(os.environ.get("ANALYST_DATA") or Path(__file__).resolve().parent.parent / "data")
 
 # Standard names for the lines most reports share. Anything else keeps metric = NULL and its printed row_label.
 METRICS = [
@@ -50,8 +52,16 @@ def connect(data=DATA, readonly=False):
     return conn
 
 
+_clients, _clients_lock = {}, threading.Lock()
+
+
 def collection(data=DATA):
-    return chromadb.PersistentClient(path=str(data / "chroma")).get_or_create_collection("chunks")
+    # One Chroma client per folder per process: opening several at once from threads fails.
+    with _clients_lock:
+        path = str(Path(data) / "chroma")
+        if path not in _clients:
+            _clients[path] = chromadb.PersistentClient(path=path)
+        return _clients[path].get_or_create_collection("chunks")
 
 
 PERIOD = re.compile(r"(?:([1-4])Q|Q([1-4]))?FY(?:20)?(\d{2})E?")  # 1QFY27, Q1 FY27, FY27E, FY2027

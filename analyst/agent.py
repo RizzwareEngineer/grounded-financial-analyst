@@ -25,6 +25,7 @@ You work only through the tools, and you finish by calling submit_answer. Plain 
 
 # Working method
 - You have at most {rounds} rounds. Call several tools in one round whenever the calls do not depend on each other.
+- Before submitting, check every part of the question against your results. A "why" or "how did it do" question needs both the reasons the report gives and the reported quarter's headline figures behind them (revenue, margin, profit, order wins, each against the broker's estimate where printed): query the numbers and search the results summary and the valuation section, not just one of them.
 - Always select doc in a query: a claim can only cite documents that appeared in your tool results.
 - `missing` names only something the question explicitly asks for that the corpus does not contain; otherwise leave it empty. Do not list detail the question did not ask about, and put caveats in a claim, not there.
 - Every number you write is checked in code against your tool results (rounding, INR m against INR b, and a ratio shown as a percentage are allowed). A number that is not in a tool result gets its claim removed.
