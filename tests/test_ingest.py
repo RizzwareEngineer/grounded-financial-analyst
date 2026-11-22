@@ -97,7 +97,7 @@ def test_table_markdown():
 def test_a_correct_page_passes_every_check():
     checks = ingest.check_page(page(), PAGE_TEXT)
     assert checks["ok"] and checks["pass_rate"] == 1.0 and checks["values"] == 26
-    assert checks["structure"] == checks["not_printed"] == checks["quarter_sum"] == []
+    assert checks["structure"] == checks["not_printed"] == checks["quarter_sum"] == checks["shifted"] == []
 
 
 def test_structure_check_catches_a_short_row():
@@ -112,12 +112,42 @@ def test_printed_check_catches_a_number_that_is_not_on_the_page():
     assert checks["pass_rate"] == pytest.approx(25 / 26) and not checks["ok"]
 
 
+def test_one_wrong_number_among_many_still_fails_the_page():
+    rows = [row(f"Line {i}", [i, i, i, i, i, i, i, i, i, i]) for i in range(1, 40)] + [row("EBITDA", [4131] + [1] * 9)]
+    checks = ingest.check_page(page({**TABLE, "unit": "t", "rows": rows}), " ".join(str(i) for i in range(1, 40)) + " 4113")
+    assert checks["pass_rate"] > 0.99 and not checks["ok"]  # 4,113 misread as 4,131 must not pass on a high rate
+
+
+SHIFTED = copy.deepcopy(TABLE)  # FY26 and FY27 swapped in every row
+for _row in SHIFTED["rows"]:
+    _row["values"][6], _row["values"][7] = _row["values"][7], _row["values"][6]
+
+
 def test_quarter_sum_check_catches_a_shifted_column():
     # every value is still printed on the page, so only the sum can tell that FY26 and FY27 swapped places
-    checks = ingest.check_page(page(changed(0, [100, 110, 120, 130, 140, 150, 600, 460, 125, 12])), PAGE_TEXT)
-    assert checks["not_printed"] == []
-    assert checks["quarter_sum"] == [{"table": "Quarterly Earnings Model", "row": "Gross Sales", "year": "FY26",
-                                      "quarters": [100, 110, 120, 130], "full_year": 600}]
+    checks = ingest.check_page(page(SHIFTED), PAGE_TEXT)
+    assert checks["not_printed"] == [] and not checks["ok"]
+    assert checks["shifted"] == checks["quarter_sum"] == [
+        {"table": "Quarterly Earnings Model", "row": "Gross Sales", "year": "FY26", "quarters": [100, 110, 120, 130],
+         "full_year": 600, "column_shift": True},
+        {"table": "Quarterly Earnings Model", "row": "EBITDA", "year": "FY26", "quarters": [10, 11, 12, 13],
+         "full_year": 60, "column_shift": True}]
+
+
+def test_one_row_that_does_not_add_up_is_recorded_but_is_not_a_shifted_column():
+    # real reports print such rows (ITC FY27 EBITDA: 51.8 + 58.8 + 56.2 + 67.2 = 234.0 against 238.9 printed)
+    table = copy.deepcopy(TABLE)
+    table["rows"] += [row("Depreciation", [1, 1, 1, 1, 1, 1, 4, 5, 1, None]), row("PBT", [9, 10, 11, 12, 13, 14, 49, 55, 12, None])]
+    checks = ingest.check_page(page(table), PAGE_TEXT + " 1 4 5 9 49 55")
+    assert [v["row"] for v in checks["quarter_sum"]] == ["PBT"] and checks["shifted"] == [] and checks["ok"]
+
+
+def test_quarter_sum_allows_rounding_and_skips_balances():
+    table = {**TABLE, "unit": "INR b", "columns": [col("1QFY26"), col("2QFY26"), col("3QFY26"), col("4QFY26"), col("FY26")],
+             "rows": [row("Other income", [0.3, 0.3, 0.3, 0.3, 1.3]),  # every printed figure is rounded to one decimal
+                      row("Loans", [100, 110, 120, 130, 130]),  # a balance: the year ends where the fourth quarter does
+                      row("Tax", [5, 6, 5, 6, 30])]}
+    assert [v["row"] for v in ingest.quarter_sum(table)] == ["Tax"]
 
 
 def test_quarter_sum_skips_rows_that_are_not_money():
@@ -213,6 +243,27 @@ def test_run_loads_the_stores_and_a_second_run_makes_no_calls(setup, tmp_path):
     assert (report["doc"], report["company"], report["rating"], report["cmp"], report["target_price"]) == ("acme.pdf", "Acme", "Buy", 1942, 2240)
 
 
+def test_an_edited_report_is_read_again_and_a_removed_one_leaves_the_stores(setup, tmp_path):
+    answers = {"FIRSTPAGE": FIRST, "SECONDPAGE": page()}
+    setup(answers)
+    acme = tmp_path / "docs" / "acme.pdf"
+    with pymupdf.open(acme) as pdf_file:  # same file name, new content
+        pdf_file[0].insert_text((50, 80), "REVISED")
+        pdf_file.save(tmp_path / "revised.pdf")
+    (tmp_path / "revised.pdf").replace(acme)
+    _, client = setup(answers)
+    assert sorted(client.calls) == [ingest.DEFAULT_MODEL] * 2  # read again, not served from the old file's cache
+    count = lambda sql: store.connect(tmp_path / "data", readonly=True).execute(sql).fetchone()[0]
+    assert count("SELECT count(*) FROM facts") == 26  # replaced, not doubled
+
+    acme.unlink()
+    with pymupdf.open() as other:  # the folder now holds a different report only
+        other.new_page().insert_text((50, 50), "FIRSTPAGE of another report")
+        other.save(tmp_path / "docs" / "other.pdf")
+    setup({"FIRSTPAGE": {**FIRST, "card": {**CARD, "company": "Other"}}})
+    assert count("SELECT group_concat(doc) FROM reports") == "other.pdf" and count("SELECT count(*) FROM facts") == 0
+
+
 @pytest.mark.parametrize("stop_reason", ["refusal", "max_tokens"])
 def test_a_refused_or_cut_off_page_is_reported_and_the_rest_is_loaded(setup, stop_reason):
     out, client = setup({"FIRSTPAGE": FIRST, "SECONDPAGE": stop_reason})
@@ -233,13 +284,60 @@ def test_a_report_with_no_card_is_reported_as_failed_and_not_loaded(setup, tmp_p
     assert store.connect(tmp_path / "data").execute("SELECT count(*) FROM reports").fetchone()[0] == 0
 
 
-def test_a_page_failing_the_checks_is_escalated_stored_and_reported(setup):
+def test_a_page_failing_the_checks_is_escalated_stored_and_reported(setup, tmp_path):
     wrong = page(changed(2, [10, 11, 12, 13, 14, 15, 46, 60, 9999, None]))
     out, client = setup({"FIRSTPAGE": FIRST, "SECONDPAGE": wrong})
     assert sorted(client.calls) == sorted([ingest.DEFAULT_MODEL] * 3 + [ingest.ESCALATION_MODEL])
-    assert out["failed_pages"] == [{"doc": "acme.pdf", "page": 2, "reason": "failed the checks; its values are stored"}]
+    assert out["failed_pages"] == [{"doc": "acme.pdf", "page": 2,
+                                    "reason": "failed the checks: 1 values not printed on the page (stored)"}]
     assert out["facts"] == 26  # the failing value is stored, not dropped
     assert out["checks"][1]["not_printed"] == [["Quarterly Earnings Model", "EBITDA", 9999]]
+
+    # the cache keeps the model's answer, not the verdict: a verdict from older, looser checks is not trusted
+    for file in (tmp_path / "data" / "cache" / "pages").glob("acme.pdf.p2.*"):
+        file.write_text(json.dumps({**json.loads(file.read_text()), "checks": {"ok": True}}))
+    out, client = setup({"FIRSTPAGE": FIRST, "SECONDPAGE": wrong})
+    assert client.calls == [] and [f["page"] for f in out["failed_pages"]] == [2]
+
+
+def test_a_shifted_column_is_read_again_and_reported(setup):
+    out, client = setup({"FIRSTPAGE": FIRST, "SECONDPAGE": page(SHIFTED)})
+    assert sorted(client.calls) == sorted([ingest.DEFAULT_MODEL] * 3 + [ingest.ESCALATION_MODEL])
+    assert out["failed_pages"] == [{"doc": "acme.pdf", "page": 2, "reason": "failed the checks: 2 rows whose quarters do not "
+                                    "add up to the year, most of the table: a misplaced column? (stored)"}]
+
+
+def test_a_row_with_the_wrong_number_of_values_is_not_stored(setup):
+    out, _ = setup({"FIRSTPAGE": FIRST, "SECONDPAGE": page(changed(2, [10, 11, 12, 13, 14, 15, 46, 60, 13]))})
+    assert out["facts"] == 17  # the 9 EBITDA values have no known columns
+    assert out["failed_pages"] == [{"doc": "acme.pdf", "page": 2,
+                                    "reason": "failed the checks: 1 rows with the wrong number of values (not stored)"}]
+
+
+def test_an_answer_that_is_not_json_is_a_failed_read(monkeypatch, tmp_path):
+    monkeypatch.setattr(llm, "USAGE_LOG", tmp_path / "usage.jsonl")
+    reply = SimpleNamespace(stop_reason="end_turn", content=[SimpleNamespace(type="text", text="{not json")],
+                            usage=SimpleNamespace(input_tokens=1, output_tokens=1))
+    out = ingest.read(SimpleNamespace(messages=SimpleNamespace(create=lambda **kwargs: reply)), b"%PDF", ingest.DEFAULT_MODEL)
+    assert out["data"] is None and out["error"] == "the answer was not valid JSON"
+
+
+SNAPSHOT = {**TABLE, "title": "Snapshot", "unit": "INR", "basis": None, "columns": [col("FY26")], "rows": [row("CMP", [1942])]}
+
+
+def test_a_table_with_no_basis_takes_the_only_basis_the_report_states(setup, tmp_path):
+    setup({"FIRSTPAGE": {"card": CARD, "blocks": [SNAPSHOT]}, "SECONDPAGE": page()})
+    conn = store.connect(tmp_path / "data", readonly=True)
+    assert conn.execute("SELECT DISTINCT basis FROM facts WHERE source_table = 'Snapshot'").fetchall()[0][0] == "consolidated"
+    assert "basis: consolidated" in conn.execute("SELECT content FROM chunks WHERE section = 'Snapshot'").fetchone()[0]
+
+
+def test_a_table_with_no_basis_stays_unlabelled_when_the_report_states_two(setup, tmp_path):
+    second = page()
+    second["blocks"].append({**TABLE, "title": "Standalone model", "basis": "standalone"})
+    setup({"FIRSTPAGE": {"card": CARD, "blocks": [SNAPSHOT]}, "SECONDPAGE": second})
+    conn = store.connect(tmp_path / "data", readonly=True)
+    assert conn.execute("SELECT DISTINCT basis FROM facts WHERE source_table = 'Snapshot'").fetchall()[0][0] is None
 
 
 # --- live ---------------------------------------------------------------------------------------------------------

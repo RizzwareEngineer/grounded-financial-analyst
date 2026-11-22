@@ -13,10 +13,12 @@ A command-line analyst that answers questions over a folder of broker research P
 ### Ingest (once)
 
 1. **Read.** PyMuPDF cuts each report into pages and pulls the raw text; pages after the broker's disclosure heading are skipped. Each page goes to Claude Haiku 5.5 as a one-page PDF and comes back as structured JSON: text blocks, tables as columns and rows of values, and chart descriptions. Page 1 also yields the report card (company, sector, rating, price, target price).
-2. **Check, in code.** Every value must be printed in that page's PyMuPDF text, every row must have one value per column, and four quarters must add up to the full year.
+2. **Check, in code.** Every value must be printed in that page's PyMuPDF text, every row must have one value per column, and where a table has four quarters and a full year they must add up (a misplaced column fails the page).
 3. **Store.** Each table cell becomes one row in SQLite, with its company, row label, period, unit, actual-or-forecast flag, document and page. Text is cut into chunks of at most 160 words, embedded with all-MiniLM-L6-v2 into Chroma, and indexed for BM25 keyword search with SQLite FTS5.
 
-**If something fails:** a page that fails the checks is read again by Haiku, then by Claude Sonnet 5.5. If it still fails it is listed as failed in the run summary. Every page result is cached on disk, so a re-run only pays for pages that are missing.
+**If something fails:** a page that fails the checks is read again by Haiku, then by Claude Sonnet 5.5. If it still fails it is listed as failed in the run summary, and a row with the wrong number of values is not stored.
+
+**When the reports change:** run ingest again. Page results are cached by the file's content, so a new report is read, an edited one is read again, an unchanged one costs nothing, and a deleted one is removed from the stores. Each report's rows are replaced as a unit, so nothing stale is left behind.
 
 ### Query (every question)
 
@@ -96,7 +98,7 @@ Its instructions carry the table's columns, the company names with their aliases
 <details>
 <summary><b>How do you know the tables were read correctly?</b></summary>
 
-Each value must be printed on its page, each row must have one value per column, and four quarters must add up to the full year. On the first report, Haiku, Sonnet and Opus all returned the same 1,026 values and every one passed the printed-on-page check.
+Each value must be printed on its page, each row must have one value per column, and four quarters must add up to the full year. Across the 17 reports, 17,612 of 17,651 values are printed on their page; the other 39 are one table that is an image, and that page is flagged.
 
 </details>
 
@@ -111,6 +113,13 @@ PDF text extraction loses which number sits under which column and gets nothing 
 <summary><b>How does the loop know it needs another tool call, and when does it stop?</b></summary>
 
 Each round the model sees the question and every result so far, and replies with either a lookup tool or `submit_answer`; choosing a lookup is what "needs more" means. It stops at `submit_answer` or after 8 rounds.
+
+</details>
+
+<details>
+<summary><b>What stops it answering too early with a thin answer?</b></summary>
+
+Its instructions say a "why" or "how did it do" answer needs both the report's reasons and the quarter's headline figures, and the eval lists the numbers a complete answer must contain, so a thin answer fails there. Retrying until the answer stops improving would need a second model to judge each round, at roughly double the cost.
 
 </details>
 
@@ -139,6 +148,20 @@ Claude Opus 5.5 runs the loop, where judgment matters; Claude Haiku 5.5 reads pa
 <summary><b>Why not fine-tune, and why no LangChain?</b></summary>
 
 Knowledge baked into weights cannot be cited or reliably refused, and six sample questions are a test set, not training data. LangChain would wrap the same Claude, Chroma and SQLite calls and sit between the code and the raw tool results the check needs.
+
+</details>
+
+<details>
+<summary><b>What happens when a report is added, edited or removed?</b></summary>
+
+Run ingest again. The page cache is keyed by each file's content, so only new or edited reports are read (about $0.02 each), and a report whose file is gone is deleted from the stores; the catalog is rebuilt for every question, so the change is visible at once.
+
+</details>
+
+<details>
+<summary><b>What if the sources change constantly, like live Google Drive files?</b></summary>
+
+Give each document a version stamp (a content hash or the Drive revision id) and re-ingest only what changed, triggered by a schedule or Drive's change notifications. Replacing a document's rows in one transaction is simpler and safer than tracking differences; keeping old versions only matters if users ask what changed between them.
 
 </details>
 

@@ -16,7 +16,6 @@ from analyst import llm, pdf, store
 DEFAULT_MODEL = "claude-haiku-5-5"
 ESCALATION_MODEL = "claude-sonnet-5-5"  # reads a page again when the default model's reading fails the checks
 EFFORT = "low"
-PASS_RATE = 0.97  # share of a page's table values that must be printed on that page
 MAX_WORDS = 160  # R5: the embedding model reads only about 256 tokens
 CHART_PREFIX = "Chart (values read from an image, approximate): "
 
@@ -128,7 +127,10 @@ def read(client, page_bytes, model):
     else:
         out["usd"] = llm.record(model, resp.usage, "ingest")
         if resp.stop_reason == "end_turn":
-            out["data"] = json.loads(next(b.text for b in resp.content if b.type == "text"))
+            try:
+                out["data"] = json.loads(next(b.text for b in resp.content if b.type == "text"))
+            except (StopIteration, ValueError):
+                out["error"] = "the answer was not valid JSON"
         else:
             out["error"] = resp.stop_reason  # "max_tokens" (cut off) or "refusal": the content is not usable JSON
     out["seconds"] = round(time.time() - start, 1)
@@ -136,25 +138,35 @@ def read(client, page_bytes, model):
 
 
 def quarter_sum(table):
-    """R1, a column shift: rows in a money unit whose four quarters do not add up to the full year within 1%."""
+    """R1: rows in a money unit whose four quarters do not add up to the full year.
+    Allowed: 1%, or the rounding of five printed figures. A row whose full year equals its fourth quarter is a
+    balance (loans, AUM), not a flow, and is skipped. `column_shift` is set when most of a year's rows fail at once:
+    the reports' own tables have a few rows that do not add up (ITC, Escorts, Muthoot), a misplaced column breaks most."""
     col = {}
     for i, c in enumerate(table["columns"]):
         if c["kind"] in ("actual", "forecast"):
             col.setdefault(store.clean_period(c["period"]), i)
     bad = []
     for year in [p for p in col if re.fullmatch(r"FY\d\d", p) and all(f"{q}Q{p}" in col for q in "1234")]:
+        found, checked = [], 0
         for row in table["rows"]:
             if (row["unit"] or table["unit"]) not in store.MONEY_UNITS or len(row["values"]) != len(table["columns"]):
                 continue
             quarters, full = [row["values"][col[f"{q}Q{year}"]] for q in "1234"], row["values"][col[year]]
-            if None not in quarters and full is not None and abs(sum(quarters) - full) > 0.01 * abs(full):
-                bad.append({"table": table["title"], "row": row["label"], "year": year, "quarters": quarters, "full_year": full})
+            if None in quarters or full is None or full == quarters[3]:
+                continue
+            checked += 1
+            rounding = 2.5 * (1 if all(float(v).is_integer() for v in [*quarters, full]) else 0.1)
+            if abs(sum(quarters) - full) > max(0.01 * abs(full), rounding):
+                found.append({"table": table["title"], "row": row["label"], "year": year, "quarters": quarters, "full_year": full})
+        bad += [{**v, "column_shift": 2 * len(found) > checked} for v in found]
     return bad
 
 
 def check_page(page, page_text):
-    """The code checks on one page's JSON. `ok` (structure and printed) drives the retry; quarter-sum violations are recorded."""
-    structure, not_printed, shifted, values = [], [], [], 0
+    """The code checks on one page's JSON. A wrong row length, a value that is not printed on the page or a shifted
+    column makes the page not `ok`: it is read again and listed in failed_pages."""
+    structure, not_printed, sums, values = [], [], [], 0
     for table in (b for b in page["blocks"] if b["type"] == "table"):
         for row in table["rows"]:
             if len(row["values"]) != len(table["columns"]):
@@ -164,26 +176,39 @@ def check_page(page, page_text):
                     values += 1
                     if not pdf.on_page(v, page_text):
                         not_printed.append([table["title"], row["label"], v])
-        shifted += quarter_sum(table)
+        sums += quarter_sum(table)
     rate = 1 - len(not_printed) / values if values else 1.0
-    return {"ok": not structure and rate >= PASS_RATE, "structure": structure, "values": values,
-            "not_printed": not_printed, "pass_rate": rate, "quarter_sum": shifted}
+    shifted = [v for v in sums if v["column_shift"]]
+    return {"ok": not (structure or not_printed or shifted), "structure": structure, "values": values,
+            "not_printed": not_printed, "pass_rate": rate, "quarter_sum": sums, "shifted": shifted}
 
 
 def _ok(result):
     return bool(result["checks"] and result["checks"]["ok"])
 
 
+def _reason(result):
+    """Why a page is in failed_pages."""
+    if not result["checks"]:
+        return result["error"]
+    c = result["checks"]
+    found = [(c["structure"], "rows with the wrong number of values (not stored)"),
+             (c["not_printed"], "values not printed on the page (stored)"),
+             (c["shifted"], "rows whose quarters do not add up to the year, most of the table: a misplaced column? (stored)")]
+    return "failed the checks: " + ", ".join(f"{len(items)} {what}" for items, what in found if items)
+
+
 def _score(result):
     c = result["checks"]
-    return (1, -len(c["structure"]), c["pass_rate"]) if c else (0,)
+    return (1, -len(c["structure"]), -len(c["shifted"]), c["pass_rate"]) if c else (0,)
 
 
 def read_checked(client, doc, page_number, page_text, page_bytes, model, cache, tries=2):
     """One model's checked reading of one page: from the cache, else up to `tries` calls. Returns (result, dollars spent now)."""
     file = cache / f"{doc}.p{page_number}.{model}.{KEY}.json"
     if file.exists():
-        return json.loads(file.read_text()), 0.0
+        result = json.loads(file.read_text())
+        return {**result, "checks": check_page(result["data"], page_text)}, 0.0  # checked by today's code, not the cached verdict
     best, spent = None, 0.0
     for _ in range(tries):
         result = read(client, page_bytes, model)
@@ -210,12 +235,14 @@ def read_page(client, doc, page_number, page_text, page_bytes, model, cache):
 
 
 def facts_from(page_number, table):
-    """One fact per non-null cell, in the shape store.add_facts takes."""
+    """One fact per non-null cell, in the shape store.add_facts takes. A row with the wrong number of values is
+    left out: its columns are unknown, and the structure check has already listed the page."""
     return [{"page": page_number, "source_table": table["title"], "row_label": row["label"], "metric": row["metric"],
              "period": c["period"], "kind": c["kind"], "value": v,
              # the beat/miss column is a percentage whatever the row's unit
              "unit": "%" if c["kind"] == "variance_pct" else c["unit"] or row["unit"] or table["unit"], "basis": table["basis"]}
-            for row in table["rows"] for c, v in zip(table["columns"], row["values"]) if v is not None]
+            for row in table["rows"] if len(row["values"]) == len(table["columns"])
+            for c, v in zip(table["columns"], row["values"]) if v is not None]
 
 
 def table_markdown(table, reported_period):
@@ -279,26 +306,42 @@ def run(docs_dir="docs", only=None, workers=4, model=None, data=store.DATA):
     cache.mkdir(parents=True, exist_ok=True)
     conn, coll = store.connect(Path(data)), store.collection(Path(data))
     out = {"docs": 0, "pages": 0, "facts": 0, "chunks": 0, "failed_pages": [], "cost_usd": 0.0, "checks": []}
+    present = {p.name for p in Path(docs_dir).glob("*.pdf")}
+    if present and not only:  # a report whose file was removed leaves the stores too; an empty folder is taken as a wrong path
+        for (gone,) in conn.execute("SELECT doc FROM reports").fetchall():
+            if gone not in present:
+                store.clear_doc(conn, coll, gone)
+                print(f"{gone}: file removed, report deleted from the stores")
+        conn.commit()
     with ThreadPoolExecutor(workers) as pool:
         for path in sorted(Path(docs_dir).glob("*.pdf")):
             doc = path.name
             if only and only not in doc:
                 continue
+            # The cache folder is named for the file's content, so an edited report is read again and an unchanged one is free.
+            # shortcut: one hash per file, so one edited page re-reads the whole report (about $0.02); hash per page if reports get long.
+            version = cache / f"{doc}.{hashlib.sha256(path.read_bytes()).hexdigest()[:10]}"
+            version.mkdir(exist_ok=True)
             # pymupdf is not thread-safe, so the pages are cut here and only the API calls run in the pool
             pages = [(n, text, page_pdf(path, n)) for n, text in pdf.content_pages(path)]
-            results = list(pool.map(lambda p: read_page(client, doc, *p, model, cache), pages))
+            results = list(pool.map(lambda p: read_page(client, doc, *p, model, version), pages))
             out["pages"] += len(pages)
             out["cost_usd"] += sum(r["spent"] for r in results)
             for (n, _, _), r in zip(pages, results):
                 out["checks"].append({"doc": doc, "page": n, "model": r["model"], "error": r["error"], **(r["checks"] or {})})
                 if not _ok(r):
-                    out["failed_pages"].append({"doc": doc, "page": n, "reason": r["error"] or "failed the checks; its values are stored"})
+                    out["failed_pages"].append({"doc": doc, "page": n, "reason": _reason(r)})
             card = results[0]["data"] and results[0]["data"]["card"]
             if not card:
                 out["failed_pages"].append({"doc": doc, "page": pages[0][0], "reason": "no report card on the first page; report not loaded"})
                 print(f"{doc}: FAILED, no report card on the first page; ${out['cost_usd']:.2f} so far")
                 continue
             card = {**card, "doc": doc, "reported_period": store.clean_period(card["reported_period"])}
+            tables = [b for r in results if r["data"] for b in r["data"]["blocks"] if b["type"] == "table"]
+            stated = {b["basis"] for b in tables} & {"consolidated", "standalone"}
+            if len(stated) == 1:  # R2: a report that states only one basis uses it for the tables that do not say
+                for b in tables:
+                    b["basis"] = b["basis"] or min(stated)
             facts, chunks = [], []
             for (n, _, _), r in zip(pages, results):
                 blocks = r["data"]["blocks"] if r["data"] else []
@@ -316,6 +359,7 @@ def run(docs_dir="docs", only=None, workers=4, model=None, data=store.DATA):
             values = sum(c["values"] for c in checked)
             rate = 1 - sum(len(c["not_printed"]) for c in checked) / values if values else 1.0
             print(f"{doc}: {len(pages)} pages, {len(facts)} facts, {len(chunks)} chunks, "
-                  f"values printed on their page {rate:.1%}, ${out['cost_usd']:.2f} so far")
+                  f"values printed on their page {rate:.1%}, {sum(len(c['quarter_sum']) for c in checked)} rows whose "
+                  f"quarters do not add up to the year, ${out['cost_usd']:.2f} so far")
     conn.close()
     return out
