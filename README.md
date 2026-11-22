@@ -10,7 +10,10 @@ A command-line analyst that answers questions over a folder of broker research P
 
 ## Walkthrough
 
-### Ingest (once)
+<details>
+<summary><b>Ingest (once)</b></summary>
+
+**Why a vision model reads the pages:** a PDF stores characters at positions, so plain extraction returns a table's numbers with the columns lost and nothing at all for a chart. The vision model is the step that turns each page into clean text and table rows. Search text can only be written once that exists, and here it is written in the same call.
 
 1. **Read.** PyMuPDF cuts each report into pages and pulls the raw text; pages after the broker's disclosure heading are skipped. Each page goes to Claude Haiku 5.5 as a one-page PDF and comes back as structured JSON: text blocks, tables as columns and rows of values, and chart descriptions. Page 1 also yields the report card (company, sector, rating, price, target price).
 2. **Check, in code.** Every value must be printed in that page's PyMuPDF text, every row must have one value per column, and where a table has four quarters and a full year they must add up (a misplaced column fails the page).
@@ -20,7 +23,10 @@ A command-line analyst that answers questions over a folder of broker research P
 
 **When the reports change:** run ingest again. Page results are cached by the file's content, so a new report is read, an edited one is read again, an unchanged one costs nothing, and a deleted one is removed from the stores. Each report's rows are replaced as a unit, so nothing stale is left behind.
 
-### Query (every question)
+</details>
+
+<details>
+<summary><b>Query (every question)</b></summary>
 
 1. **Loop.** The question goes to Claude Opus 5.5 with five lookup tools:
    - `list_reports()`: the catalog of reports.
@@ -38,7 +44,10 @@ A command-line analyst that answers questions over a folder of broker research P
 - **A statement fails the check:** it goes back to Claude with the reason, in the same single send-back. What still fails is dropped.
 - **Nothing survives, or the tools never found support:** the answer is "Not in the corpus".
 
-### Eval (after every change)
+</details>
+
+<details>
+<summary><b>Eval (after every change)</b></summary>
 
 `evals/golden.jsonl` holds 47 questions, each with the numbers an answer must contain, the reports it must cite, and whether it should refuse. `python -m analyst eval` runs each question through the CLI and plain Python scores it; no model grades the answers. The expected values were checked against the PDF text, and 15 questions are held out from tuning.
 
@@ -58,7 +67,10 @@ A command-line analyst that answers questions over a folder of broker research P
 
 **If something fails:** the scorecard prints the reason per question (a missing number, a missing citation, a wrong refusal), and `--failed` re-runs only those.
 
-### One question, end to end
+</details>
+
+<details>
+<summary><b>One question, end to end</b></summary>
 
 **Question:** "Why did Escorts Kubota's gross margin decline in 1QFY27 despite 28% revenue growth, and what is the margin outlook?"
 
@@ -80,6 +92,8 @@ The answer, shortened to four of its eight statements:
 > Outlook: the broker expects margins to stay under pressure at least through 2Q and then recover gradually as input costs ease in 2H. [MotilalOswal_ESCORTS_5765676.pdf]
 
 It states that the revenue figure is standalone, and it reports the report's own inconsistency (5.4% against 5.8%) instead of picking one.
+
+</details>
 
 ## Run it
 
