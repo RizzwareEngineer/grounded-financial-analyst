@@ -8,7 +8,7 @@ import anthropic
 
 ROOT = Path(__file__).resolve().parent.parent
 USAGE_LOG = ROOT / "data" / "usage.jsonl"
-BUDGET_USD = float(os.environ.get("ANALYST_BUDGET_USD", "25"))
+BUDGET_USD = float(os.environ.get("ANALYST_BUDGET_USD", "40"))
 
 # USD per million tokens: (input, output, cache read). Cache writes are costed at 1.25x input.
 # shortcut: Haiku's cache-read price and all cache-write prices are assumed, not published in our notes; the Console bill is the truth.
