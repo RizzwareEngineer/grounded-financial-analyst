@@ -30,7 +30,7 @@ A command-line analyst that answers questions over a folder of broker research P
 
 1. **Loop.** The question goes to Claude Opus 5.5 with five lookup tools:
    - `list_reports()`: the catalog of reports.
-   - `list_labels(company)`: the table rows one report has.
+   - `list_labels(company)`: one line per printed table row of that report, with the table's title, the row's label, its unit and the periods it has values for. No numbers.
    - `query_numbers(sql)`: one read-only `SELECT` over the SQLite numbers.
    - `search_text(query, companies)`: Chroma vector search plus FTS5 keyword search, merged, one search per company.
    - `read_page(company, page)`: everything on one page of a report. Page 1 is the broker's own summary, so "why" questions start there and don't depend on search wording.
@@ -43,6 +43,48 @@ A command-line analyst that answers questions over a folder of broker research P
 - **A lookup finds nothing:** the tool returns the valid company names and a hint, so Claude retries with `list_labels` or different wording.
 - **A statement fails the check:** it goes back to Claude with the reason, in the same single send-back. What still fails is dropped.
 - **Nothing survives, or the tools never found support:** the answer is "Not in the corpus".
+
+</details>
+
+<details>
+<summary><b>How the model finds the right number</b></summary>
+
+The reports' tables all have different shapes, so they are not stored as tables. Every printed cell becomes one row in a single table, `facts`, and that table has the same columns for every report:
+
+| Column | What it holds | Example |
+|---|---|---|
+| `company` | The report's company | GSK Pharma |
+| `doc`, `page` | Where the number is printed; this is the citation | `MotilalOswal_GLAXO_5765685.pdf`, 2 |
+| `source_table` | The printed table's title | Qtr Perf. (Consol.) |
+| `row_label` | The row's name as printed | Net Sales |
+| `metric` | A standard name for ten common lines (revenue, EBITDA, PAT, margins, EPS); empty for every other row | revenue |
+| `period` | The printed column, as a fiscal period | 1QFY27 |
+| `kind` | actual, forecast, broker_estimate or variance_pct | actual |
+| `value`, `unit` | The number as printed | 9384, INR m |
+| `value_inr_m` | Money totals converted to INR millions | 9384 |
+| `basis` | consolidated, standalone, segment or subsidiary | consolidated |
+
+So one printed row becomes one `facts` row per column. The "Net Sales" row of GSK Pharma's quarterly table is stored as:
+
+| `row_label` | `period` | `kind` | `value` | `unit` |
+|---|---|---|---|---|
+| Net Sales | 1QFY27 | actual | 9384 | INR m |
+| Net Sales | 1QFY27 | broker_estimate | 8788 | INR m |
+| Net Sales | 1QFY27 | variance_pct | 7 | % |
+| Net Sales | 2QFY27 | forecast | 11275 | INR m |
+
+The model is told these columns and their allowed values in its instructions. There are two ways it picks a row:
+
+1. **A common line.** It filters on the standard name: `metric = 'revenue' AND period = '1QFY27' AND kind = 'actual'`. It doesn't need to know how each report words the row.
+2. **Any other row.** It calls `list_labels(company)` first. That returns one line per printed row of that report (122 lines for GSK Pharma) and no values:
+
+   | `source_table` | `row_label` | `metric` | `unit` | `basis` | `periods` |
+   |---|---|---|---|---|---|
+   | Qtr Perf. (Consol.) | Net Sales | revenue | INR m | consolidated | 1QFY26, 2QFY26, … FY27 |
+   | Qtr Perf. (Consol.) | Net Sales: YoY Change (%) | revenue_growth_yoy_pct | % | consolidated | 1QFY26, 2QFY26, … FY27 |
+   | Qtr Perf. (Consol.) | EBITDA: Margins (%) | ebitda_margin_pct | % | consolidated | 1QFY26, 2QFY26, … FY27 |
+
+   The model reads the labels, picks the one that matches the question, checks that the period it wants is listed, and then queries `facts` with that exact `row_label` and `period`.
 
 </details>
 
